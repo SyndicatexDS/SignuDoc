@@ -4729,7 +4729,12 @@ export async function correctSentEnvelope(
         status = 'draft',
         sent_at = null,
         signed_pdf_key = null,
+        signed_pdf_sha256 = null,
         evidence_key = null,
+        evidence_sha256 = null,
+        recipient_evidence_sha256 = null,
+        revision_key = null,
+        revision_sha256 = null,
         updated_at = $1
       WHERE id = $2 AND user_id = $3
       `,
@@ -4743,9 +4748,21 @@ export async function correctSentEnvelope(
       SET
         status = 'pending',
         signed_at = null,
+        declined_at = null,
+        decline_reason = null,
         signing_token_hash = null,
-        certificate_fingerprint = null,
+        signing_token_expires_at = null,
+        spent_signing_token_hash = null,
+        turn_started_at = null,
+        last_notified_at = null,
+        last_nudged_at = null,
+        email_code_hash = null,
+        email_code_expires_at = null,
+        email_code_attempts = 0,
+        email_code_sent_at = null,
+        consented_at = null,
         signature_meaning = null,
+        embed_link_opened_at = null,
         updated_at = $1
       WHERE envelope_id = $2
       `,
@@ -4761,16 +4778,25 @@ export async function correctSentEnvelope(
         image_key = null,
         checked = null,
         submitted_at = null,
+        input_method = null,
         updated_at = $1
       WHERE envelope_id = $2
       `,
       [now, parsedEnvelopeId],
     );
 
-    // 4. Remove any spent signing links
+    // 4. Remove any recipient download tokens or provider sessions
     await tx.query(
       `
-      DELETE FROM spent_signing_links
+      DELETE FROM recipient_download_tokens
+      WHERE envelope_id = $1
+      `,
+      [parsedEnvelopeId],
+    );
+
+    await tx.query(
+      `
+      DELETE FROM provider_signing_sessions
       WHERE envelope_id = $1
       `,
       [parsedEnvelopeId],
