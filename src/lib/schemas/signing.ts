@@ -17,6 +17,7 @@ import {
 export const signingUnavailableStateSchema = z.enum([
   "expired",
   "already-signed",
+  "completed",
   "voided",
   "declined",
 ]);
@@ -54,7 +55,8 @@ export const signingVisibleFieldSchema = signingFieldBaseSchema.extend({
 export const signingDisclosureSchema = z.object({
   sections: z.array(
     z.object({
-      heading: z.string().trim().min(1),
+      // Empty when the section is a plain paragraph with no heading.
+      heading: z.string().trim(),
       text: z.string().trim().min(1),
     }),
   ),
@@ -68,6 +70,8 @@ export const signingPayloadSchema = z.object({
   currentSignerFields: z.array(signingCurrentFieldSchema),
   disclosure: signingDisclosureSchema,
   declineUrl: z.string().trim().min(1),
+  /** Checks, as the signer types, that an answer fits its box. */
+  fieldFitUrl: z.string().trim().min(1),
   documentUrl: z.string().trim().min(1),
   envelopeId: idSchema,
   envelopeTitle: envelopeTitleSchema,
@@ -149,6 +153,12 @@ export const signerCheckRequestSchema = z.discriminatedUnion("method", [
     password: z.string().min(1).max(128),
   }),
 ]);
+
+/** What the signer has typed so far in one field, to check it fits. */
+export const signingFieldFitRequestSchema = z.object({
+  fieldId: idSchema,
+  value: z.string().max(5000),
+});
 
 export const signerConsentRequestSchema = z.object({
   disclosureVersion: z.string().trim().min(1).max(40),

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import {
   MAX_COPY_RECIPIENTS_PER_ENVELOPE,
-  MAX_SIGNERS_PER_ENVELOPE,
+  MAX_SIGNERS_CEILING,
   signatureMeanings,
   signerStatuses,
 } from "../types/domain.ts";
@@ -33,6 +33,16 @@ export const draftSignerSchema = z.object({
   name: nameSchema,
   email: emailSchema,
   signOrder: z.number().int().positive().optional(),
+  // The step of the signing order this signer is in. Signers who share a
+  // step sign at the same time; see signing-steps.ts. Left out for every
+  // signer, they sign one after the other in the order of the list.
+  signingStep: z
+    .number()
+    .int()
+    .positive()
+    .max(MAX_SIGNERS_CEILING)
+    .nullable()
+    .optional(),
   // Extra checks before signing. accessCode: a string sets it, null removes
   // it, and leaving it out keeps the code already saved.
   accessCode: z.string().trim().min(4).max(64).nullable().optional(),
@@ -45,7 +55,9 @@ export const draftSignerSchema = z.object({
 export const signerListSchema = z
   .array(draftSignerSchema)
   .min(1)
-  .max(MAX_SIGNERS_PER_ENVELOPE)
+  // The install's own limit, which can be lower, is checked when the list
+  // is saved (signer-limit.ts).
+  .max(MAX_SIGNERS_CEILING)
   .superRefine((signers, ctx) => {
     const emails = new Set<string>();
     const signOrders = new Set<number>();
@@ -123,6 +135,7 @@ export const replaceSignersResponseSchema = z.object({
       requireEmailCode: z.boolean(),
       signatureMeaning: z.enum(signatureMeanings).nullable(),
       signOrder: z.number().int().positive(),
+      signingStep: z.number().int().positive(),
     }),
   ),
   updatedAt: unixTimestampSchema,

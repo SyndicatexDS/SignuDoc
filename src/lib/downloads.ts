@@ -10,6 +10,7 @@ import {
   envelopeRecordSchema,
   type EnvelopeRecord,
 } from "./schemas/envelope.ts";
+import { truncateToWholeCharacters } from "./text-truncate.ts";
 import { fieldRecordSchema, type FieldRecord } from "./schemas/field.ts";
 import { signerRecordSchema, type SignerRecord } from "./schemas/signer.ts";
 import { listAuditEventsForEnvelope } from "./services/audit.ts";
@@ -75,6 +76,7 @@ type SignerRow = {
   name: string;
   signedAt: number | null;
   signOrder: number;
+  signingStep?: number | null;
   signingTokenExpiresAt: number | null;
   signingTokenHash: string | null;
   status: SignerRecord["status"];
@@ -154,6 +156,7 @@ function mapSignerRow(row: SignerRow): SignerRecord {
     lastNudgedAt: row.lastNudgedAt,
     name: row.name,
     signOrder: row.signOrder,
+    signingStep: row.signingStep ?? null,
     signedAt: row.signedAt,
     signingTokenExpiresAt: row.signingTokenExpiresAt,
     signingTokenHash: row.signingTokenHash,
@@ -299,6 +302,7 @@ async function getSignerForEnvelope(
         name,
         email,
         sign_order AS "signOrder",
+        signing_step AS "signingStep",
         status,
         signing_token_hash AS "signingTokenHash",
         signing_token_expires_at AS "signingTokenExpiresAt",
@@ -506,13 +510,19 @@ async function listPageSizesForEnvelope(
   );
 }
 
+const MAX_FILE_NAME_SEGMENT_LENGTH = 120;
+
 export function sanitizeFileNameSegment(value: string): string {
-  return value
+  const cleaned = value
+    .toWellFormed()
     .trim()
     .replace(/[<>:"/\\|?*\u0000-\u001F]+/g, " ")
     .replace(/\s+/g, " ")
-    .replace(/\.+$/g, "")
-    .slice(0, 120);
+    .replace(/\.+$/g, "");
+
+  return truncateToWholeCharacters(cleaned, MAX_FILE_NAME_SEGMENT_LENGTH)
+    .trimEnd()
+    .replace(/\.+$/g, "");
 }
 
 function buildDownloadFileName(

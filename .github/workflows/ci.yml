@@ -34,6 +34,9 @@ jobs:
       - run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      # The functions that draw PDFs must ship the fonts they read, and not
+      # the whole repository (issue #108).
+      - run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/check-function-traces.ts
 
   e2e:
     name: End-to-end test

@@ -63,6 +63,8 @@ type ReviewSigner = {
   id: string;
   name: string;
   order: number;
+  /** Signers who share a step sign at the same time. */
+  step?: number;
   tint?: string;
 };
 
@@ -249,9 +251,22 @@ export function ReviewShell({
     sizeLabel: record.sizeLabel,
     title: record.title,
   };
-  const canSend = Boolean(record.canSend);
   const disabledReason = record.disabledReason ?? null;
   const firstSigner = activeRecord.signers[0];
+  const stepOf = (signer: ReviewSigner) => signer.step ?? signer.order;
+  const firstStep = firstSigner ? stepOf(firstSigner) : 1;
+  // Everyone in the first step is invited when the envelope is sent.
+  const firstStepNames = activeRecord.signers
+    .filter((signer) => stepOf(signer) === firstStep)
+    .map((signer) => signer.name);
+  const signsAtTheSameTime =
+    new Set(activeRecord.signers.map(stepOf)).size <
+    activeRecord.signers.length;
+  // A signature in a signer's own name goes on top of the one before it, so
+  // those signers cannot sign at the same time.
+  const providerLevelBlocked =
+    signsAtTheSameTime && signatureLevel !== "simple";
+  const canSend = Boolean(record.canSend) && !providerLevelBlocked;
 
   return (
     <div className="space-y-5">
@@ -324,7 +339,7 @@ export function ReviewShell({
                           color: palette.color,
                         }}
                       >
-                        {signer.order}
+                        {signsAtTheSameTime ? stepOf(signer) : signer.order}
                       </span>
 
                       <div className="min-w-0 flex-1">
@@ -385,9 +400,9 @@ export function ReviewShell({
             ) : null}
 
             <p className="notice notice-accent mt-4 font-medium">
-              After you send, Signer 1 will receive an email with a link to
-              sign. Each signer is notified in order after the previous signer
-              completes.
+              {signsAtTheSameTime
+                ? "After you send, everyone numbered 1 receives an email with a link to sign. Signers with the same number sign at the same time, and the next number is invited once they have all signed."
+                : "After you send, Signer 1 will receive an email with a link to sign. Each signer is notified in order after the previous signer completes."}
             </p>
 
             <div className="well mt-4 p-4">
@@ -474,6 +489,13 @@ export function ReviewShell({
                     ? "Signers sign here, and the finished PDF is sealed by this install."
                     : `Each signer proves who they are at ${record.signingProvider.name} and signs with a certificate in their own name. ${signatureLevel === "qualified" ? "A qualified signature needs a qualified certificate, which not every signer has. " : ""}Which type a document needs is a legal question; this is not legal advice.`}
                 </p>
+                {providerLevelBlocked ? (
+                  <p className="notice notice-danger mt-3" role="alert">
+                    These signatures are added one after another, so signers
+                    cannot sign at the same time. Give each signer their own
+                    step, or choose SignuDoc signatures.
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </article>
@@ -502,7 +524,12 @@ export function ReviewShell({
         <SendConfirmationDialog
           deadlineDays={deadlineDays}
           errorMessage={sendPhase === "error" ? sendError : null}
-          firstSignerName={firstSigner?.name ?? "Signer 1"}
+          firstSignerName={
+            firstStepNames.length > 1
+              ? `${firstStepNames.slice(0, -1).join(", ")} and ${firstStepNames[firstStepNames.length - 1]}`
+              : (firstSigner?.name ?? "Signer 1")
+          }
+          firstStepSize={firstStepNames.length}
           isSending={sendPhase === "sending"}
           onCancel={closeConfirmation}
           onConfirm={handleConfirmSend}
@@ -526,6 +553,8 @@ type SendConfirmationDialogProps = {
   deadlineDays: number;
   errorMessage: string | null;
   firstSignerName: string;
+  /** How many signers are invited at once when it is sent. */
+  firstStepSize: number;
   isSending: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -539,6 +568,7 @@ function SendConfirmationDialog({
   deadlineDays,
   errorMessage,
   firstSignerName,
+  firstStepSize,
   isSending,
   onCancel,
   onConfirm,
@@ -568,7 +598,9 @@ function SendConfirmationDialog({
                   {signerCount === 1 ? "signer" : "signers"}.{" "}
                   {signerCount === 1
                     ? `${firstSignerName} will be notified immediately.`
-                    : `The first signer (${firstSignerName}) will be notified immediately.`}{" "}
+                    : firstStepSize > 1
+                      ? `${firstSignerName} will be notified immediately, to sign at the same time.`
+                      : `The first signer (${firstSignerName}) will be notified immediately.`}{" "}
                   The request expires in {deadlineDays} days.
                 </p>
                 {signatureType ? (
