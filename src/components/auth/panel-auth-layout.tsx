@@ -37,7 +37,7 @@ export function PanelAuthLayout({ children }: PanelAuthLayoutProps) {
       {/* Left Column: Wallpaper & Overlays (visible on lg+) */}
       <div className="relative hidden lg:flex flex-col justify-between overflow-hidden min-h-screen select-none p-12 bg-black">
         <img
-          src="/blueprint.avif"
+          src="/blueprint-wallpaper.jpg"
           alt="Blueprint Wallpaper"
           className="absolute inset-0 h-full w-full object-cover z-0 pointer-events-none select-none"
         />
