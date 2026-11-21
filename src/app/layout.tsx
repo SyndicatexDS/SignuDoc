@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description:
     "Secure document signing by RustLabs.",
   icons: {
-    icon: "/icon.svg",
+    icon: "/rustlabs-logo.png",
   },
 };
 

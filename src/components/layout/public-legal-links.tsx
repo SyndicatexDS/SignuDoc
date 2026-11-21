@@ -3,15 +3,8 @@
 import Link from "next/link";
 
 import { useBranding } from "@/components/layout/branding-provider";
-import {
-  BRAND_PARENT_NAME,
-  BRAND_PARENT_URL,
-  SIGNUDOC_NAME,
-  SIGNUDOC_URL,
-} from "@/lib/branding";
 import { PUBLIC_COPYRIGHT_YEAR, publicFooterLinks } from "@/lib/legal";
 import { cn } from "@/lib/cn";
-import { PERMITTED_USE_PATH } from "@/lib/permitted-uses";
 
 type PublicLegalFooterProps = {
   className?: string;
@@ -69,13 +62,6 @@ export function PublicLegalFooter({
             },
       ];
 
-  // Which documents may be signed here: on every install.
-  links.push({
-    external: false,
-    href: PERMITTED_USE_PATH,
-    label: labelVariant === "long" ? "What this is for" : "E-signatures",
-  });
-
   return (
     <footer className={cn("relative z-10", className)}>
       <div className={cn("page-width py-7", contentClassName)}>
@@ -112,17 +98,6 @@ export function PublicLegalFooter({
               )}
             </nav>
           ) : null}
-
-          {branding.hosted ? null : (
-            <a
-              className={resolvedLinkClassName}
-              href={BRAND_PARENT_URL}
-              rel="noreferrer"
-              target="_blank"
-            >
-              Part of {BRAND_PARENT_NAME}
-            </a>
-          )}
         </div>
       </div>
     </footer>

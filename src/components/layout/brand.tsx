@@ -26,10 +26,20 @@ export function Brand({
     return (
       <Link
         aria-label={productName}
-        className={cn("inline-flex min-w-0 items-center", className)}
+        className={cn("inline-flex min-w-0 items-center gap-2.5 text-(--fg)", className)}
         href={href}
       >
         <BrandLogo compact={compact} src={logoUrl} />
+        {!compact ? (
+          <span
+            className={cn(
+              "max-w-[52vw] truncate text-[1.125rem] font-extrabold tracking-[-0.02em] sm:max-w-[22rem] sm:text-[1.1875rem]",
+              labelClassName,
+            )}
+          >
+            {productName}
+          </span>
+        ) : null}
       </Link>
     );
   }
@@ -85,28 +95,22 @@ export function BrandLogo({
   );
 }
 
-/** The signature stroke on a tile in the accent color. Decorative: the link carries the name. */
+/** The brand mark using the RustLabs logo. */
 export function BrandMark({ className = "" }: { className?: string }) {
   return (
     <span
       aria-hidden="true"
       className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center rounded-[0.5625rem] bg-(--accent)",
+        "inline-flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-[0.5625rem]",
         className,
       )}
     >
-      <svg
-        fill="none"
-        height="16"
-        stroke="#fff"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.4"
-        viewBox="0 0 24 24"
-        width="16"
-      >
-        <path d="M4 16c3 0 4-8 7-8s2 7 5 7 2-3 4-3" />
-      </svg>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        alt="RustLabs"
+        className="size-full object-contain"
+        src="https://rustlabs.io/assets/rustlabs-logo-BdqpmhOg.png"
+      />
     </span>
   );
 }

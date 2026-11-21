@@ -64,6 +64,7 @@ function buildContentSecurityPolicy(frameAncestors: string) {
         "'self'",
         "data:",
         "blob:",
+        "https://rustlabs.io",
         preview && "https://vercel.live https://vercel.com",
       ],
     ],
