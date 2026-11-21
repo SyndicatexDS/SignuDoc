@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 
 const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 const EMBED_DOCS_URL =
-  "https://github.com/NYLLON-SOFTWARE/SignuDoc/blob/main/docs/api.md#embedded-signing";
+  "https://github.com/SyndicatexDS/SignuDoc/blob/main/docs/api.md#embedded-signing";
 
 type Payload = {
   error?: string;
@@ -123,7 +123,7 @@ export function EmbeddingPanel() {
           </a>
           . No invitations are emailed for those: the app signs the person in
           and says who they are, so list only sites you trust. Every other page
-          of SignuDoc stays impossible to frame.
+          of Blueprint stays impossible to frame.
         </p>
       </div>
 

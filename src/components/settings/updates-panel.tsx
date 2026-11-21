@@ -214,7 +214,7 @@ function HowToUpdate({ status }: { status: UpdateStatus }) {
               >
                 {repository.owner}/{repository.slug}
               </a>
-              , open the Update SignuDoc workflow and press{" "}
+              , open the Update Blueprint workflow and press{" "}
               <strong className="text-(--fg)">Run workflow</strong>. It also
               runs by itself once a week.
             </li>
