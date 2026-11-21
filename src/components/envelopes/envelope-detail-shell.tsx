@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 
 import { DocumentThumbnail } from "@/components/shared/document-thumbnail";
 import { ShellButton } from "@/components/shared/form-shell";
@@ -97,6 +97,7 @@ type ModalState =
   | "cancel-deletion"
   | "delete-draft"
   | "delete-finished"
+  | "edit-envelope"
   | "save-template"
   | "void-envelope"
   | null;
@@ -169,6 +170,9 @@ export function EnvelopeDetailShell({
   const [correctingSigner, setCorrectingSigner] =
     useState<EnvelopeDetailSigner | null>(null);
   const [voidReason, setVoidReason] = useState("");
+  const [isEditingEnvelope, setIsEditingEnvelope] = useState(false);
+  const [isReplacingDocument, setIsReplacingDocument] = useState(false);
+  const replaceDocInputRef = useRef<HTMLInputElement>(null);
   const [savedTemplateName, setSavedTemplateName] = useState<string | null>(
     null,
   );
@@ -438,6 +442,70 @@ export function EnvelopeDetailShell({
     }
   }
 
+  async function handleConfirmEditEnvelope() {
+    setActionError(null);
+    setIsEditingEnvelope(true);
+
+    try {
+      const response = await fetch(`/api/envelopes/${envelopeId}/edit`, {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (response.ok) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign(
+          `/envelopes/${encodeURIComponent(envelopeId)}/prepare`,
+        );
+        return;
+      }
+
+      setActionError(payload?.error ?? "Unable to return envelope to draft.");
+    } catch {
+      setActionError("Unable to return envelope to draft.");
+    } finally {
+      setIsEditingEnvelope(false);
+    }
+  }
+
+  async function handleReplaceDocument(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setActionError(null);
+    setIsReplacingDocument(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch(`/api/envelopes/${envelopeId}/document`, {
+        body: formData,
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (response.ok) {
+        window.location.reload();
+        return;
+      }
+
+      setActionError(payload?.error ?? "Unable to replace the document.");
+    } catch {
+      setActionError("Unable to replace the document.");
+    } finally {
+      setIsReplacingDocument(false);
+      if (replaceDocInputRef.current) {
+        replaceDocInputRef.current.value = "";
+      }
+    }
+  }
+
   async function handleConfirmDeleteDraft() {
     setActionError(null);
     setIsDeletingDraft(true);
@@ -640,11 +708,25 @@ export function EnvelopeDetailShell({
 
             {isOwnEnvelope && activeRecord.status === "draft" ? (
               <>
+                <input
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={handleReplaceDocument}
+                  ref={replaceDocInputRef}
+                  type="file"
+                />
                 <ShellButton
                   onClick={() => setActiveModal("delete-draft")}
                   variant="secondary"
                 >
                   Delete draft
+                </ShellButton>
+                <ShellButton
+                  disabled={isReplacingDocument}
+                  onClick={() => replaceDocInputRef.current?.click()}
+                  variant="secondary"
+                >
+                  {isReplacingDocument ? "Replacing..." : "Replace document"}
                 </ShellButton>
                 <ShellButton href={`/envelopes/${envelopeId}/prepare`}>
                   Continue editing
@@ -654,6 +736,15 @@ export function EnvelopeDetailShell({
 
             {isOwnEnvelope && activeRecord.status === "sent" ? (
               <>
+                <ShellButton
+                  onClick={() => {
+                    setActionError(null);
+                    setActiveModal("edit-envelope");
+                  }}
+                  variant="secondary"
+                >
+                  Edit envelope
+                </ShellButton>
                 <ShellButton
                   onClick={() => setActiveModal("void-envelope")}
                   variant="secondary"
@@ -1193,6 +1284,22 @@ export function EnvelopeDetailShell({
             </span>
           </label>
         </ConfirmationDialog>
+      ) : null}
+
+      {activeModal === "edit-envelope" ? (
+        <ConfirmationDialog
+          confirmLabel="Return to draft"
+          description={[
+            "This returns the envelope to draft mode so you can correct mistakes, replace the document, or adjust fields.",
+            "Any signatures collected so far will be reset so everyone signs the corrected version.",
+            "Your existing placed fields, signers, and settings will remain intact.",
+          ]}
+          errorMessage={actionError}
+          onCancel={() => setActiveModal(null)}
+          onConfirm={handleConfirmEditEnvelope}
+          processing={isEditingEnvelope}
+          title="Edit this envelope?"
+        />
       ) : null}
     </div>
   );

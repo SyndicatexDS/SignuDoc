@@ -462,6 +462,43 @@ function PrepareLiveShellContent({
   const [preferredDocumentUrl, setPreferredDocumentUrl] = useState<
     string | null
   >(null);
+  const [isReplacingDoc, setIsReplacingDoc] = useState(false);
+  const replaceDocInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleReplaceDocument(
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsReplacingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(
+        `/api/envelopes/${encodeURIComponent(envelopeId)}/document`,
+        {
+          body: formData,
+          method: "POST",
+        },
+      );
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        alert(payload?.error ?? "Unable to replace the document.");
+        return;
+      }
+      window.location.reload();
+    } catch {
+      alert("Unable to replace the document.");
+    } finally {
+      setIsReplacingDoc(false);
+      if (replaceDocInputRef.current) {
+        replaceDocInputRef.current.value = "";
+      }
+    }
+  }
   const autosaveTimeoutRef = useRef<number | null>(null);
   // The saves already asked for; the next one waits for them.
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
@@ -1034,7 +1071,22 @@ function PrepareLiveShellContent({
                 </button>
               </div>
 
-              <div className="flex justify-center lg:justify-end">
+              <div className="flex items-center justify-center gap-2.5 lg:justify-end">
+                <input
+                  accept="application/pdf"
+                  className="hidden"
+                  onChange={handleReplaceDocument}
+                  ref={replaceDocInputRef}
+                  type="file"
+                />
+                <button
+                  className="btn-quiet px-2.5 py-1 text-xs font-semibold"
+                  disabled={isReplacingDoc}
+                  onClick={() => replaceDocInputRef.current?.click()}
+                  type="button"
+                >
+                  {isReplacingDoc ? "Replacing..." : "Replace PDF"}
+                </button>
                 <SaveStatusIndicator
                   onRetrySave={() =>
                     void persistFields(currentFieldsRef.current)

@@ -4,7 +4,9 @@ import { requireVerifiedSenderSession } from "@/lib/auth/route-session";
 import { getDb } from "@/lib/db/connection";
 import {
   EnvelopeDocumentAccessError,
+  EnvelopeMutationError,
   getDraftEnvelopeDocumentForUser,
+  replaceDraftEnvelopeDocument,
 } from "@/lib/envelopes";
 import { resolveEnvelopeViewerAccess } from "@/lib/envelope-access";
 import { logRouteError } from "@/lib/security/logging";
@@ -108,6 +110,66 @@ export async function GET(
         },
         status: 500,
       },
+    );
+  }
+}
+
+export async function POST(
+  request: Request,
+  context: EnvelopeDocumentRouteContext,
+) {
+  const sessionResult = await requireVerifiedSenderSession(request);
+
+  if (sessionResult instanceof Response) {
+    return sessionResult;
+  }
+
+  const session = sessionResult;
+  const { id } = await context.params;
+
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file");
+
+    if (!file || typeof file === "string" || !(file instanceof Blob)) {
+      return NextResponse.json(
+        { error: "A valid PDF file is required." },
+        { status: 400 },
+      );
+    }
+
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    const result = await replaceDraftEnvelopeDocument(
+      session.user.id,
+      id,
+      {
+        body: buffer,
+        contentType: file.type || "application/pdf",
+        filename: file instanceof File ? file.name : "document.pdf",
+      },
+      { database: getDb() },
+    );
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (error) {
+    if (error instanceof EnvelopeMutationError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.statusCode },
+      );
+    }
+
+    logRouteError(error, {
+      category: "envelope_document_replace_failure",
+      ipAddress: getClientIpAddress(request.headers),
+      message: "Unexpected failure while replacing envelope document.",
+      path: getRequestPathname(request),
+      userId: session.user.id,
+    });
+
+    return NextResponse.json(
+      { error: "Unable to replace the document for this envelope." },
+      { status: 500 },
     );
   }
 }

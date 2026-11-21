@@ -4680,3 +4680,253 @@ export async function deleteDraftEnvelope(
 
   return envelope;
 }
+
+/**
+ * Returns an in-progress sent envelope back to draft so the sender can
+ * modify the document, update fields, or correct signers before everyone signs.
+ * Signatures already completed are reset so that all parties sign the
+ * revised document.
+ */
+export async function correctSentEnvelope(
+  userId: string,
+  envelopeId: string,
+  options: {
+    actorEmail?: string | null;
+    database?: DbPool;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+  } = {},
+): Promise<{ id: string; redirectUrl: string }> {
+  const parsedEnvelopeId = idSchema.parse(envelopeId);
+  const database = options.database ?? getDb();
+
+  return await withTransaction(async (tx) => {
+    const envelope = await getEnvelopeByIdForUser(
+      userId,
+      parsedEnvelopeId,
+      tx,
+      { lock: true },
+    );
+
+    if (!envelope) {
+      throw new EnvelopeMutationError("Envelope not found.", 404);
+    }
+
+    if (envelope.status !== "sent") {
+      throw new EnvelopeMutationError(
+        "Only in-progress sent envelopes can be edited.",
+        409,
+      );
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
+    // 1. Revert envelope status to draft, clear any signed PDF or evidence
+    await tx.query(
+      `
+      UPDATE envelopes
+      SET
+        status = 'draft',
+        sent_at = null,
+        signed_pdf_key = null,
+        evidence_key = null,
+        updated_at = $1
+      WHERE id = $2 AND user_id = $3
+      `,
+      [now, parsedEnvelopeId, userId],
+    );
+
+    // 2. Reset signers so they can sign anew
+    await tx.query(
+      `
+      UPDATE signers
+      SET
+        status = 'pending',
+        signed_at = null,
+        signing_token_hash = null,
+        certificate_fingerprint = null,
+        signature_meaning = null,
+        updated_at = $1
+      WHERE envelope_id = $2
+      `,
+      [now, parsedEnvelopeId],
+    );
+
+    // 3. Reset placed field values (signatures, text inputs, etc.), keeping field positions intact
+    await tx.query(
+      `
+      UPDATE fields
+      SET
+        value = null,
+        image_key = null,
+        checked = null,
+        submitted_at = null,
+        updated_at = $1
+      WHERE envelope_id = $2
+      `,
+      [now, parsedEnvelopeId],
+    );
+
+    // 4. Remove any spent signing links
+    await tx.query(
+      `
+      DELETE FROM spent_signing_links
+      WHERE envelope_id = $1
+      `,
+      [parsedEnvelopeId],
+    );
+
+    // 5. Record audit event
+    await recordAuditEvent(
+      {
+        actorEmail: options.actorEmail ?? null,
+        actorType: "sender",
+        createdAt: now,
+        envelopeId: parsedEnvelopeId,
+        event: "signer_corrected",
+        ipAddress: options.ipAddress ?? null,
+        metadata: {
+          action: "reverted_to_draft_for_corrections",
+          reverted: true,
+        },
+        userAgent: options.userAgent ?? null,
+      },
+      tx,
+    );
+
+    return {
+      id: parsedEnvelopeId,
+      redirectUrl: `/envelopes/${parsedEnvelopeId}/prepare`,
+    };
+  }, database);
+}
+
+/**
+ * Replaces the source PDF of a draft envelope. Page dimensions and counts are
+ * recalculated, and any placed fields beyond the new page count are pruned.
+ */
+export async function replaceDraftEnvelopeDocument(
+  userId: string,
+  envelopeId: string,
+  input: {
+    body: Uint8Array;
+    contentType?: string;
+    filename?: string;
+  },
+  {
+    database = getDb(),
+    storageService = createStorageService(),
+  }: {
+    database?: DbPool;
+    storageService?: StorageService;
+  } = {},
+): Promise<{ filename: string; id: string; pageCount: number }> {
+  const parsedEnvelopeId = idSchema.parse(envelopeId);
+
+  const importedPdf = await importPdfDocument({
+    body: input.body,
+    contentType: input.contentType ?? "application/pdf",
+    filename: input.filename ?? "document.pdf",
+  });
+
+  return await withTransaction(async (tx) => {
+    const envelope = await getEnvelopeByIdForUser(
+      userId,
+      parsedEnvelopeId,
+      tx,
+      { lock: true },
+    );
+
+    if (!envelope) {
+      throw new EnvelopeMutationError("Envelope not found.", 404);
+    }
+
+    if (envelope.status !== "draft") {
+      throw new EnvelopeMutationError(
+        "Only draft envelopes can have their document replaced.",
+        409,
+      );
+    }
+
+    // Overwrite the original PDF in storage
+    await storageService.putObject({
+      body: input.body,
+      contentType: "application/pdf",
+      key: envelope.sourcePdfKey,
+    });
+
+    const now = Math.floor(Date.now() / 1000);
+
+    // Update envelope record
+    await tx.query(
+      `
+      UPDATE envelopes
+      SET
+        page_count = $1,
+        source_pdf_hash = $2,
+        source_pdf_size_bytes = $3,
+        source_pdf_filename = $4,
+        updated_at = $5
+      WHERE id = $6 AND user_id = $7
+      `,
+      [
+        importedPdf.pageCount,
+        importedPdf.sourceHash,
+        importedPdf.sizeBytes,
+        importedPdf.filename,
+        now,
+        parsedEnvelopeId,
+        userId,
+      ],
+    );
+
+    // Delete existing envelope pages and insert the new pages
+    await tx.query(`DELETE FROM envelope_pages WHERE envelope_id = $1`, [
+      parsedEnvelopeId,
+    ]);
+
+    for (const page of importedPdf.pages) {
+      await tx.query(
+        `
+        INSERT INTO envelope_pages (
+          id,
+          envelope_id,
+          page_number,
+          width_pt,
+          height_pt
+        ) VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          randomUUID(),
+          parsedEnvelopeId,
+          page.pageNumber,
+          page.widthPt,
+          page.heightPt,
+        ],
+      );
+    }
+
+    // Remove any fields on pages that no longer exist
+    await tx.query(
+      `
+      DELETE FROM fields
+      WHERE envelope_id = $1 AND page > $2
+      `,
+      [parsedEnvelopeId, importedPdf.pageCount],
+    );
+
+    // Delete cached thumbnail if any
+    const thumbnailKey = buildEnvelopeThumbnailKey({
+      envelopeId: parsedEnvelopeId,
+      sourcePdfKey: envelope.sourcePdfKey,
+      userId,
+    });
+    await storageService.deleteObject(thumbnailKey).catch(() => undefined);
+
+    return {
+      filename: importedPdf.filename,
+      id: parsedEnvelopeId,
+      pageCount: importedPdf.pageCount,
+    };
+  }, database);
+}
