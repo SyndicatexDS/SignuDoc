@@ -39,9 +39,14 @@ export function AuthShell({ children }: AuthShellProps) {
   // No "Sign up" link to a page that would only say sign-up is closed.
   const showNavAction = navAction.href !== "/signup" || signupAvailable;
 
+  // Render full-bleed panel experience for login and signup pages
+  if (pathname === "/login" || pathname === "/signup") {
+    return <main className="min-h-screen w-full bg-[#111111]">{children}</main>;
+  }
+
   return (
-    <div className="flex min-h-screen flex-col">
-      <header>
+    <div className="flex min-h-screen flex-col bg-(--page)">
+      <header className="border-b border-(--border) bg-(--page)/90 backdrop-blur-md">
         <div className="page-width flex items-center justify-between gap-4 py-4">
           <Brand href="/" />
           <nav

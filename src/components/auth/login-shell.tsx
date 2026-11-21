@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ChangeEvent, type FormEvent } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { useBranding } from "@/components/layout/branding-provider";
 import {
@@ -10,7 +11,7 @@ import {
   SsoButton,
   type SsoOption,
 } from "@/components/auth/sso-button";
-import { FieldShell, ShellButton } from "@/components/shared/form-shell";
+import { PanelAuthLayout } from "@/components/auth/panel-auth-layout";
 import { authClient } from "@/lib/auth/client";
 import {
   describePasswordRefusal,
@@ -118,7 +119,11 @@ function normalizeAuthErrorMessage(
 }
 
 export function LoginShell(props: LoginShellProps) {
-  return <LiveLoginShell {...props} />;
+  return (
+    <PanelAuthLayout>
+      <LiveLoginShell {...props} />
+    </PanelAuthLayout>
+  );
 }
 
 function LiveLoginShell({
@@ -141,18 +146,17 @@ function LiveLoginShell({
         ? describeSsoError(ssoError)
         : null,
   );
-  // With password sign-in off, the form is only shown on request, for the
-  // few addresses that keep a password for when single sign-on is down.
   const [showPasswordForm, setShowPasswordForm] = useState(
     passwordSignIn === "on",
   );
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [forgotPassword, setForgotPassword] = useState<ForgotPasswordModel>(
     createForgotPasswordModel(""),
   );
   const [isResendingVerification, setIsResendingVerification] = useState(false);
   const [showResendVerification, setShowResendVerification] = useState(false);
-  // The password was right and the account uses two-step sign-in.
   const [needsSecondStep, setNeedsSecondStep] = useState(false);
 
   function handleChange(field: keyof LoginFormValues) {
@@ -249,7 +253,6 @@ function LiveLoginShell({
 
     if (result.error) {
       const normalizedErrorMessage = normalizeAuthErrorMessage(result.error);
-
       const errorCode = (result.error as AuthErrorLike).code;
 
       if (
@@ -266,8 +269,6 @@ function LiveLoginShell({
       } else if (
         describePasswordRefusal(result.error) === PASSWORD_TOO_LONG_MESSAGE
       ) {
-        // No account has a password this long, so it cannot be right. Say
-        // why instead of "Something went wrong" (issue #57).
         setErrors({ password: PASSWORD_TOO_LONG_MESSAGE });
       } else {
         setBannerMessage(
@@ -404,119 +405,189 @@ function LiveLoginShell({
 
   return (
     <>
-      <section className="panel w-full max-w-[460px] p-8 sm:p-10">
-        <div className="space-y-7">
-          <div className="space-y-2">
-            <p className="section-eyebrow">Log in</p>
-            <h1 className="text-[clamp(1.875rem,4.5vw,2.375rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-(--fg)">
-              Welcome back
-            </h1>
+      <div className="space-y-6">
+        {/* Logo */}
+        <div className="flex justify-center">
+          <img
+            src="https://panel.rustlabs.io/images/rustlabs-logo.png"
+            alt="RustLabs"
+            className="h-10 w-auto object-contain brightness-110 drop-shadow"
+          />
+        </div>
+
+        {/* Title */}
+        <div className="text-center">
+          <h2 className="text-xl font-bold tracking-[0.14em] text-white uppercase">
+            SIGN IN TO SIGNUDOC
+          </h2>
+        </div>
+
+        {/* Banner Alert */}
+        {bannerMessage ? (
+          <div
+            className="rounded-lg bg-red-950/60 border border-red-800/80 p-3.5 text-xs text-red-200"
+            role="alert"
+          >
+            {bannerMessage}
           </div>
+        ) : null}
 
-          {bannerMessage ? (
-            <p className="notice notice-danger" role="alert">
-              {bannerMessage}
-            </p>
-          ) : null}
+        {/* SSO Button */}
+        {sso ? (
+          <SsoButton
+            onError={setBannerMessage}
+            sso={sso}
+            variant={showPasswordForm ? "secondary" : "primary"}
+          />
+        ) : null}
 
-          {sso ? (
-            <SsoButton
-              onError={setBannerMessage}
-              sso={sso}
-              variant={showPasswordForm ? "secondary" : "primary"}
-            />
-          ) : null}
-
-          {sso && showPasswordForm ? (
-            <p className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-(--secondary)">
+        {sso && showPasswordForm ? (
+          <div className="relative flex items-center justify-center">
+            <div className="w-full border-t border-[#2a2a2a]" />
+            <span className="absolute bg-[#111111] px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
               or
-            </p>
-          ) : null}
+            </span>
+          </div>
+        ) : null}
 
-          {showPasswordForm ? (
-            <>
-              <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-                <FieldShell
-                  autoComplete="email"
-                  disabled={formLocked}
-                  error={errors.email}
-                  label="Email"
-                  name="login-email"
-                  onChange={handleChange("email")}
-                  placeholder="jane@acmecorp.com"
-                  readOnly={formLocked}
-                  type="email"
-                  value={values.email}
-                />
-                <FieldShell
+        {/* Login Form */}
+        {showPasswordForm ? (
+          <form className="space-y-4" noValidate onSubmit={handleSubmit}>
+            {/* Email Field */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="login-email"
+                className="text-xs font-semibold uppercase tracking-wider text-gray-400"
+              >
+                Email
+              </label>
+              <input
+                id="login-email"
+                name="login-email"
+                type="email"
+                autoComplete="email"
+                disabled={formLocked}
+                readOnly={formLocked}
+                placeholder="name@company.com"
+                value={values.email}
+                onChange={handleChange("email")}
+                className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
+              />
+              {errors.email ? (
+                <p className="text-xs text-red-400 mt-1">{errors.email}</p>
+              ) : null}
+            </div>
+
+            {/* Password Field */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="login-password"
+                className="text-xs font-semibold uppercase tracking-wider text-gray-400"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="login-password"
+                  name="login-password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   disabled={formLocked}
-                  error={errors.password}
-                  label="Password"
-                  name="login-password"
-                  onChange={handleChange("password")}
                   readOnly={formLocked}
-                  type="password"
+                  placeholder="Enter your password"
                   value={values.password}
+                  onChange={handleChange("password")}
+                  className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] pl-4 pr-11 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
                 />
-                <ShellButton
-                  className="w-full"
-                  disabled={formLocked}
-                  loading={isSubmitting}
-                  type="submit"
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer p-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {isSubmitting ? "Logging in..." : "Log in"}
-                </ShellButton>
-                {showResendVerification ? (
-                  <ShellButton
-                    className="w-full"
-                    disabled={formLocked}
-                    loading={isResendingVerification}
-                    onClick={handleResendVerification}
-                    type="button"
-                    variant="secondary"
-                  >
-                    {isResendingVerification
-                      ? "Sending..."
-                      : "Resend verification email"}
-                  </ShellButton>
-                ) : null}
-              </form>
-            </>
-          ) : passwordSignIn === "fallback" ? (
-            <button
-              className="w-fit p-0 text-left text-sm font-bold text-(--accent-ink) underline-offset-4 hover:underline"
-              onClick={() => setShowPasswordForm(true)}
-              type="button"
-            >
-              Sign in with a password instead
-            </button>
-          ) : null}
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              {errors.password ? (
+                <p className="text-xs text-red-400 mt-1">{errors.password}</p>
+              ) : null}
+            </div>
 
-          <div className="flex flex-col gap-3 border-t border-(--border) pt-5 text-sm text-(--secondary)">
-            {showPasswordForm ? (
+            {/* Options Row */}
+            <div className="flex items-center justify-between text-xs text-gray-400 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded bg-[#1a1a1a] border-[#2e2e2e] text-[#1034df] focus:ring-[#1034df] focus:ring-offset-0 focus:ring-1 cursor-pointer"
+                />
+                <span>Remember me</span>
+              </label>
               <button
-                className="w-fit p-0 text-left font-bold text-(--accent-ink) underline-offset-4 hover:underline"
-                onClick={openForgotPasswordModal}
                 type="button"
+                onClick={openForgotPasswordModal}
+                className="text-gray-400 hover:text-white transition-colors cursor-pointer"
               >
-                Forgot your password?
+                Forgot Password?
+              </button>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={formLocked}
+              className="w-full mt-2 py-3.5 px-4 bg-gradient-to-r from-[#1034df] to-[#165cff] hover:from-[#0d2bb8] hover:to-[#124cd4] text-white font-bold text-xs tracking-widest uppercase rounded-lg shadow-[0_4px_15px_rgba(16,52,223,0.4)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>SIGNING IN...</span>
+                </>
+              ) : (
+                "SIGN IN"
+              )}
+            </button>
+
+            {/* Resend Verification */}
+            {showResendVerification ? (
+              <button
+                type="button"
+                disabled={formLocked}
+                onClick={handleResendVerification}
+                className="w-full py-2.5 px-4 bg-[#1a1a1a] border border-[#2e2e2e] text-gray-300 hover:text-white hover:border-gray-500 font-semibold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+              >
+                {isResendingVerification
+                  ? "Sending..."
+                  : "Resend verification email"}
               </button>
             ) : null}
-            {signupAvailable ? (
-              <p>
-                Don&apos;t have an account?{" "}
-                <Link
-                  className="font-bold text-(--accent-ink) underline-offset-4 hover:underline"
-                  href="/signup"
-                >
-                  Sign up
-                </Link>
-              </p>
-            ) : null}
-          </div>
+          </form>
+        ) : passwordSignIn === "fallback" ? (
+          <button
+            className="w-full p-2 text-center text-xs font-semibold text-blue-400 hover:underline cursor-pointer"
+            onClick={() => setShowPasswordForm(true)}
+            type="button"
+          >
+            Sign in with a password instead
+          </button>
+        ) : null}
+
+        {/* Footer Link */}
+        <div className="text-center text-xs text-gray-400 pt-4 border-t border-[#222222]">
+          Don&apos;t have an account?{" "}
+          <Link
+            href="/signup"
+            className="text-white hover:text-blue-400 font-semibold underline-offset-4 hover:underline transition-colors ml-1"
+          >
+            Sign up for free
+          </Link>
         </div>
-      </section>
+      </div>
 
       <ForgotPasswordDialog
         bannerMessage={forgotPassword.bannerMessage}
@@ -565,58 +636,77 @@ function ForgotPasswordDialog({
         }
       }}
     >
-      <DialogContent className="max-w-[560px] sm:p-8" showCloseButton={false}>
-        <div className="space-y-6">
-          <DialogHeader className="space-y-3">
-            <DialogTitle>Reset your password</DialogTitle>
-            <DialogDescription className="max-w-[40ch]">
-              Enter the email address associated with your account and
-              we&apos;ll send you a reset link.
+      <DialogContent
+        className="max-w-[460px] bg-[#161616] border-[#2e2e2e] text-white sm:p-8"
+        showCloseButton={false}
+      >
+        <div className="space-y-5">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-lg font-bold uppercase tracking-wider text-white">
+              Reset Password
+            </DialogTitle>
+            <DialogDescription className="text-xs text-gray-400">
+              Enter the email address associated with your account and we&apos;ll send you a reset link.
             </DialogDescription>
           </DialogHeader>
 
           {bannerMessage ? (
-            <p className="notice notice-danger" role="alert">
+            <div className="rounded-lg bg-red-950/60 border border-red-800/80 p-3 text-xs text-red-200" role="alert">
               {bannerMessage}
-            </p>
+            </div>
           ) : null}
 
           {successMessage ? (
-            <p className="notice notice-success" role="status">
+            <div className="rounded-lg bg-emerald-950/60 border border-emerald-800/80 p-3 text-xs text-emerald-200" role="status">
               {successMessage}
-            </p>
+            </div>
           ) : null}
 
-          <form className="space-y-6" noValidate onSubmit={onSubmit}>
-            <FieldShell
-              autoComplete="email"
-              disabled={isSubmitting}
-              error={emailError}
-              label="Email"
-              name="forgot-password-email"
-              onChange={onEmailChange}
-              placeholder="jane@acmecorp.com"
-              readOnly={isSubmitting}
-              type="email"
-              value={email}
-            />
+          <form className="space-y-4" noValidate onSubmit={onSubmit}>
+            <div className="space-y-1.5">
+              <label htmlFor="forgot-password-email" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Email
+              </label>
+              <input
+                id="forgot-password-email"
+                name="forgot-password-email"
+                type="email"
+                autoComplete="email"
+                disabled={isSubmitting}
+                readOnly={isSubmitting}
+                placeholder="name@company.com"
+                value={email}
+                onChange={onEmailChange}
+                className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
+              />
+              {emailError ? (
+                <p className="text-xs text-red-400 mt-1">{emailError}</p>
+              ) : null}
+            </div>
 
-            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-              <ShellButton
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                type="button"
                 disabled={isSubmitting}
                 onClick={onClose}
-                type="button"
-                variant="secondary"
+                className="px-4 py-2 bg-[#222222] hover:bg-[#2c2c2c] text-gray-300 text-xs font-semibold uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
               >
                 Cancel
-              </ShellButton>
-              <ShellButton
-                disabled={isSubmitting}
-                loading={isSubmitting}
+              </button>
+              <button
                 type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-gradient-to-r from-[#1034df] to-[#165cff] hover:from-[#0d2bb8] hover:to-[#124cd4] text-white text-xs font-bold uppercase tracking-wider rounded-lg shadow-[0_2px_10px_rgba(16,52,223,0.3)] transition-all cursor-pointer flex items-center gap-2"
               >
-                {isSubmitting ? "Sending..." : "Send reset link"}
-              </ShellButton>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Sending...</span>
+                  </>
+                ) : (
+                  "Send reset link"
+                )}
+              </button>
             </div>
           </form>
         </div>
@@ -627,6 +717,7 @@ function ForgotPasswordDialog({
 
 function ResetPasswordCard({ resetToken }: { resetToken: string }) {
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -683,60 +774,100 @@ function ResetPasswordCard({ resetToken }: { resetToken: string }) {
   const formLocked = isSubmitting;
 
   return (
-    <section className="panel w-full max-w-[440px] p-8 sm:p-10">
-      <div className="space-y-8">
-        <div className="space-y-2">
-          <p className="section-eyebrow">Reset password</p>
-          <h1 className="text-[clamp(1.875rem,4.5vw,2.375rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-(--fg)">
-            Create a new password
-          </h1>
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <img
+          src="https://panel.rustlabs.io/images/rustlabs-logo.png"
+          alt="RustLabs"
+          className="h-10 w-auto object-contain brightness-110 drop-shadow"
+        />
+      </div>
+
+      <div className="text-center">
+        <h2 className="text-xl font-bold tracking-[0.14em] text-white uppercase">
+          CREATE NEW PASSWORD
+        </h2>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg bg-red-950/60 border border-red-800/80 p-3 text-xs text-red-200" role="alert">
+          {error}
+        </div>
+      ) : null}
+
+      {successMessage ? (
+        <div className="rounded-lg bg-emerald-950/60 border border-emerald-800/80 p-3 text-xs text-emerald-200" role="status">
+          {successMessage}
+        </div>
+      ) : null}
+
+      <form className="space-y-4" noValidate onSubmit={handleSubmit}>
+        <div className="space-y-1.5">
+          <label htmlFor="reset-password" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            New Password
+          </label>
+          <div className="relative">
+            <input
+              id="reset-password"
+              name="reset-password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              disabled={formLocked}
+              readOnly={formLocked}
+              placeholder="Enter at least 15 characters"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError(null);
+                setSuccessMessage(null);
+              }}
+              className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] pl-4 pr-11 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer p-1"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-gray-500">Must be at least 15 characters</p>
         </div>
 
-        {error ? (
-          <p className="notice notice-danger" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <button
+          type="submit"
+          disabled={formLocked}
+          className="w-full py-3.5 px-4 bg-gradient-to-r from-[#1034df] to-[#165cff] hover:from-[#0d2bb8] hover:to-[#124cd4] text-white font-bold text-xs tracking-widest uppercase rounded-lg shadow-[0_4px_15px_rgba(16,52,223,0.4)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Updating password...</span>
+            </>
+          ) : (
+            "Update password"
+          )}
+        </button>
 
-        {successMessage ? (
-          <p className="notice notice-success" role="status">
-            {successMessage}
-          </p>
-        ) : null}
-
-        <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-          <FieldShell
-            autoComplete="new-password"
-            disabled={formLocked}
-            error={error ?? undefined}
-            helper="Must be at least 15 characters"
-            label="New password"
-            name="reset-password"
-            onChange={(event) => {
-              setPassword(event.target.value);
-              setError(null);
-              setSuccessMessage(null);
-            }}
-            readOnly={formLocked}
-            type="password"
-            value={password}
-          />
-          <ShellButton
-            className="w-full"
-            disabled={formLocked}
-            loading={isSubmitting}
-            type="submit"
+        <div className="text-center text-xs text-gray-400 pt-3 border-t border-[#222222]">
+          <Link
+            href="/login"
+            className="text-white hover:text-blue-400 font-semibold underline-offset-4 hover:underline transition-colors"
           >
-            {isSubmitting ? "Updating password..." : "Update password"}
-          </ShellButton>
-        </form>
-      </div>
-    </section>
+            Back to Sign in
+          </Link>
+        </div>
+      </form>
+    </div>
   );
 }
 
 type SecondStepCardProps = {
-  /** Back to the password, with a reason to show there. */
   onRestart: (message: string) => void;
   onSignedIn: () => void;
 };
@@ -822,65 +953,85 @@ function SecondStepCard({ onRestart, onSignedIn }: SecondStepCardProps) {
   }
 
   return (
-    <section className="panel w-full max-w-[460px] p-8 sm:p-10">
-      <div className="space-y-7">
-        <div className="space-y-2">
-          <p className="section-eyebrow">Two-step sign-in</p>
-          <h1 className="text-[clamp(1.875rem,4.5vw,2.375rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-(--fg)">
-            {useBackupCode ? "Enter a backup code" : "Enter your code"}
-          </h1>
-          <p className="text-sm leading-6 text-(--secondary)">
-            {useBackupCode
-              ? "Each backup code works once."
-              : "Open your authenticator app and enter the 6-digit code it shows."}
-          </p>
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <img
+          src="https://panel.rustlabs.io/images/rustlabs-logo.png"
+          alt="RustLabs"
+          className="h-10 w-auto object-contain brightness-110 drop-shadow"
+        />
+      </div>
+
+      <div className="text-center">
+        <h2 className="text-xl font-bold tracking-[0.14em] text-white uppercase">
+          {useBackupCode ? "ENTER BACKUP CODE" : "TWO-STEP SIGN-IN"}
+        </h2>
+        <p className="text-xs text-gray-400 mt-2">
+          {useBackupCode
+            ? "Each backup code works once."
+            : "Open your authenticator app and enter the 6-digit code it shows."}
+        </p>
+      </div>
+
+      {error ? (
+        <div className="rounded-lg bg-red-950/60 border border-red-800/80 p-3 text-xs text-red-200" role="alert">
+          {error}
         </div>
+      ) : null}
 
-        {error ? (
-          <p className="notice notice-danger" role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <form className="space-y-5" noValidate onSubmit={handleSubmit}>
-          <FieldShell
+      <form className="space-y-4" noValidate onSubmit={handleSubmit}>
+        <div className="space-y-1.5">
+          <label htmlFor="second-step-code" className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            {useBackupCode ? "Backup code" : "6-digit code"}
+          </label>
+          <input
+            id="second-step-code"
+            name="second-step-code"
+            type="text"
             autoComplete="one-time-code"
             disabled={isSubmitting}
-            label={useBackupCode ? "Backup code" : "6-digit code"}
-            name="second-step-code"
-            onChange={(event) => {
-              setCode(event.target.value);
+            readOnly={isSubmitting}
+            placeholder={useBackupCode ? "Enter backup code" : "123456"}
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value);
               setError(null);
             }}
-            readOnly={isSubmitting}
-            value={code}
+            className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] px-4 py-3 text-sm text-center tracking-widest text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
           />
-          <ShellButton
-            className="w-full"
-            disabled={isSubmitting}
-            loading={isSubmitting}
-            type="submit"
-          >
-            {isSubmitting ? "Checking..." : "Continue"}
-          </ShellButton>
-        </form>
+        </div>
 
-        <div className="border-t border-(--border) pt-5 text-sm">
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full py-3.5 px-4 bg-gradient-to-r from-[#1034df] to-[#165cff] hover:from-[#0d2bb8] hover:to-[#124cd4] text-white font-bold text-xs tracking-widest uppercase rounded-lg shadow-[0_4px_15px_rgba(16,52,223,0.4)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Checking...</span>
+            </>
+          ) : (
+            "Continue"
+          )}
+        </button>
+
+        <div className="pt-4 border-t border-[#222222] text-center">
           <button
-            className="w-fit p-0 text-left font-bold text-(--accent-ink) underline-offset-4 hover:underline"
+            type="button"
             onClick={() => {
               setUseBackupCode((current) => !current);
               setCode("");
               setError(null);
             }}
-            type="button"
+            className="text-xs text-blue-400 hover:underline cursor-pointer"
           >
             {useBackupCode
               ? "Use a code from your app instead"
               : "Lost your phone? Use a backup code"}
           </button>
         </div>
-      </div>
-    </section>
+      </form>
+    </div>
   );
 }

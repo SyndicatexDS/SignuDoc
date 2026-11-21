@@ -398,9 +398,7 @@ async function saveSettingsLocked(
 
   const current = (await readStoredSettings(database)) ?? {
     ...UNSET_SETTINGS,
-    // A row that is being created is a decision about this install, and the
-    // safe starting point for sign-up is closed, not open.
-    signupMode: "closed" as const,
+    signupMode: "open" as const,
   };
   const next: AppSettings = { ...current, ...update };
 

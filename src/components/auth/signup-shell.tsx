@@ -7,9 +7,10 @@ import {
   type ChangeEventHandler,
   type FormEvent,
 } from "react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { SsoButton, type SsoOption } from "@/components/auth/sso-button";
-import { FieldShell, ShellButton } from "@/components/shared/form-shell";
+import { PanelAuthLayout } from "@/components/auth/panel-auth-layout";
 import { authClient } from "@/lib/auth/client";
 import {
   describePasswordRefusal,
@@ -20,7 +21,6 @@ import { signUpSchema } from "@/lib/schemas/auth";
 
 const defaultSuccessMessage = "Check your email to verify your sender account.";
 // With no email provider connected, the verification email cannot be sent.
-// Logging in sends it again, so that works once email is set up.
 const SIGNUP_EMAIL_NOT_CONNECTED_MESSAGE =
   "Your account is created, but this site can't send email yet, so the email that verifies your address couldn't be sent. Ask an administrator to finish email setup in Settings, Organization. Once it's set up, log in and the verification email will be sent.";
 
@@ -30,7 +30,7 @@ type AuthErrorLike = {
 };
 
 // Codes the server answers with when this install's sign-up rule turns an
-// address away. The message that comes with them says what the rule is.
+// address away.
 const SIGNUP_RULE_ERROR_CODES = new Set([
   "setup_required",
   "signup_closed",
@@ -119,131 +119,211 @@ function SignupFormCard({
   successMessage,
   values,
 }: SignupFormCardProps) {
+  const [showPassword, setShowPassword] = useState(false);
+
   return (
-    <section className="panel w-full max-w-[460px] p-8 sm:p-10">
-      <div className="space-y-7">
-        <div className="space-y-2">
-          <p className="section-eyebrow">Create account</p>
-          <h1 className="text-[clamp(1.875rem,4.5vw,2.375rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-(--fg)">
-            Create your account
-          </h1>
-          {signupRule ? (
-            <p className="pt-1 text-sm leading-6 text-muted-foreground">
-              {signupRule}
-            </p>
-          ) : null}
+    <div className="space-y-6">
+      {/* Logo */}
+      <div className="flex justify-center">
+        <img
+          src="https://panel.rustlabs.io/images/rustlabs-logo.png"
+          alt="RustLabs"
+          className="h-10 w-auto object-contain brightness-110 drop-shadow"
+        />
+      </div>
+
+      {/* Header */}
+      <div className="text-center">
+        <h2 className="text-xl font-bold tracking-[0.14em] text-white uppercase">
+          CREATE FREE ACCOUNT
+        </h2>
+        {signupRule ? (
+          <p className="mt-2 text-xs text-gray-400">{signupRule}</p>
+        ) : null}
+      </div>
+
+      {/* Alert Banner */}
+      {bannerMessage ? (
+        <div
+          className="rounded-lg bg-red-950/60 border border-red-800/80 p-3.5 text-xs text-red-200"
+          role="alert"
+        >
+          {bannerMessage}
         </div>
+      ) : null}
 
-        {bannerMessage ? (
-          <p className="notice notice-danger" role="alert">
-            {bannerMessage}
-          </p>
-        ) : null}
-
-        {showSuccess ? (
-          <div aria-live="polite" className="notice notice-success">
-            <p>{successMessage ?? defaultSuccessMessage}</p>
+      {/* Success Banner */}
+      {showSuccess ? (
+        <div
+          aria-live="polite"
+          className="rounded-lg bg-emerald-950/60 border border-emerald-800/80 p-4 text-xs text-emerald-200 space-y-3"
+        >
+          <p>{successMessage ?? defaultSuccessMessage}</p>
+          <div className="flex flex-col gap-2 pt-2">
+            <Link
+              href="/login"
+              className="w-full py-3 px-4 bg-gradient-to-r from-[#1034df] to-[#165cff] text-white font-bold text-xs tracking-widest uppercase rounded-lg text-center shadow-[0_4px_15px_rgba(16,52,223,0.4)]"
+            >
+              Go to sign in
+            </Link>
+            {onResendVerification ? (
+              <button
+                type="button"
+                disabled={formLocked}
+                onClick={onResendVerification}
+                className="w-full py-2.5 px-4 bg-[#1a1a1a] border border-[#2e2e2e] text-gray-300 hover:text-white hover:border-gray-500 font-semibold text-xs uppercase tracking-wider rounded-lg transition-colors cursor-pointer"
+              >
+                {isResendingVerification
+                  ? "Sending..."
+                  : "Resend verification email"}
+              </button>
+            ) : null}
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
-        {sso ? (
-          <SsoButton
-            onError={onSsoError}
-            sso={sso}
-            variant={passwordSignIn ? "secondary" : "primary"}
-          />
-        ) : null}
+      {/* SSO Button */}
+      {sso && !showSuccess ? (
+        <SsoButton
+          onError={onSsoError}
+          sso={sso}
+          variant={passwordSignIn ? "secondary" : "primary"}
+        />
+      ) : null}
 
-        {sso && passwordSignIn ? (
-          <p className="text-center text-xs font-semibold uppercase tracking-[0.12em] text-(--secondary)">
+      {sso && passwordSignIn && !showSuccess ? (
+        <div className="relative flex items-center justify-center">
+          <div className="w-full border-t border-[#2a2a2a]" />
+          <span className="absolute bg-[#111111] px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
             or
-          </p>
-        ) : null}
+          </span>
+        </div>
+      ) : null}
 
-        {passwordSignIn ? (
-          <form className="space-y-5" noValidate onSubmit={onSubmit}>
-            <FieldShell
+      {/* Form Fields */}
+      {passwordSignIn && !showSuccess ? (
+        <form className="space-y-4" noValidate onSubmit={onSubmit}>
+          {/* Full Name */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="signup-full-name"
+              className="text-xs font-semibold uppercase tracking-wider text-gray-400"
+            >
+              Full name
+            </label>
+            <input
+              id="signup-full-name"
+              name="signup-full-name"
+              type="text"
               autoComplete="name"
               disabled={formLocked}
-              error={errors.fullName}
-              label="Full name"
-              name="signup-full-name"
-              onChange={onFullNameChange}
-              placeholder="Jane Smith"
               readOnly={formLocked}
+              placeholder="Jane Smith"
               value={values.fullName}
+              onChange={onFullNameChange}
+              className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
             />
-            <FieldShell
+            {errors.fullName ? (
+              <p className="text-xs text-red-400 mt-1">{errors.fullName}</p>
+            ) : null}
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="signup-email"
+              className="text-xs font-semibold uppercase tracking-wider text-gray-400"
+            >
+              Email Address
+            </label>
+            <input
+              id="signup-email"
+              name="signup-email"
+              type="email"
               autoComplete="email"
               disabled={formLocked}
-              error={errors.email}
-              label="Email"
-              name="signup-email"
-              onChange={onEmailChange}
-              placeholder="jane@acmecorp.com"
               readOnly={formLocked}
-              type="email"
+              placeholder="jane@company.com"
               value={values.email}
+              onChange={onEmailChange}
+              className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
             />
-            <FieldShell
-              autoComplete="new-password"
-              disabled={formLocked}
-              error={errors.password}
-              helper="Must be at least 15 characters"
-              label="Password"
-              name="signup-password"
-              onChange={onPasswordChange}
-              placeholder="Enter a password"
-              readOnly={formLocked}
-              type="password"
-              value={values.password}
-            />
+            {errors.email ? (
+              <p className="text-xs text-red-400 mt-1">{errors.email}</p>
+            ) : null}
+          </div>
 
-            {showSuccess ? (
-              <div className="flex flex-col gap-3">
-                <ShellButton className="w-full" href="/login" variant="primary">
-                  Go to log in
-                </ShellButton>
-                {onResendVerification ? (
-                  <ShellButton
-                    className="w-full"
-                    disabled={formLocked}
-                    loading={isResendingVerification}
-                    onClick={onResendVerification}
-                    type="button"
-                    variant="secondary"
-                  >
-                    {isResendingVerification
-                      ? "Sending..."
-                      : "Resend verification email"}
-                  </ShellButton>
-                ) : null}
-              </div>
-            ) : (
-              <ShellButton
-                className="w-full"
+          {/* Password */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="signup-password"
+              className="text-xs font-semibold uppercase tracking-wider text-gray-400"
+            >
+              Password
+            </label>
+            <div className="relative">
+              <input
+                id="signup-password"
+                name="signup-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
                 disabled={formLocked}
-                loading={isSubmitting}
-                type="submit"
-                variant="primary"
+                readOnly={formLocked}
+                placeholder="Enter a secure password"
+                value={values.password}
+                onChange={onPasswordChange}
+                className="w-full rounded-lg bg-[#1a1a1a] border border-[#2e2e2e] pl-4 pr-11 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#1034df] focus:ring-1 focus:ring-[#1034df] transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors cursor-pointer p-1"
+                aria-label={showPassword ? "Hide password" : "Show password"}
               >
-                {isSubmitting ? "Creating account..." : "Sign up"}
-              </ShellButton>
-            )}
-          </form>
-        ) : null}
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-500">
+              Must be at least 15 characters
+            </p>
+            {errors.password ? (
+              <p className="text-xs text-red-400 mt-1">{errors.password}</p>
+            ) : null}
+          </div>
 
-        <div className="border-t border-(--border) pt-5 text-sm text-(--secondary)">
-          Already have an account?{" "}
-          <Link
-            className="font-bold text-(--accent-ink) underline-offset-4 hover:underline"
-            href="/login"
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={formLocked}
+            className="w-full mt-2 py-3.5 px-4 bg-gradient-to-r from-[#1034df] to-[#165cff] hover:from-[#0d2bb8] hover:to-[#124cd4] text-white font-bold text-xs tracking-widest uppercase rounded-lg shadow-[0_4px_15px_rgba(16,52,223,0.4)] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
           >
-            Log in
-          </Link>
-        </div>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>CREATING ACCOUNT...</span>
+              </>
+            ) : (
+              "SIGN UP"
+            )}
+          </button>
+        </form>
+      ) : null}
+
+      {/* Footer Link */}
+      <div className="text-center text-xs text-gray-400 pt-4 border-t border-[#222222]">
+        Already have an account?{" "}
+        <Link
+          href="/login"
+          className="text-white hover:text-blue-400 font-semibold underline-offset-4 hover:underline transition-colors ml-1"
+        >
+          Sign in
+        </Link>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -254,40 +334,49 @@ export function SignupShell({
   signupRule = null,
   sso = null,
 }: SignupShellProps) {
-  if (!signupAvailable) {
-    return <SignupClosedCard />;
-  }
-
   return (
-    <LiveSignupShell
-      emailConnected={emailConnected}
-      passwordSignIn={passwordSignIn || !sso}
-      signupRule={signupRule}
-      sso={sso}
-    />
+    <PanelAuthLayout>
+      {!signupAvailable ? (
+        <SignupClosedCard />
+      ) : (
+        <LiveSignupShell
+          emailConnected={emailConnected}
+          passwordSignIn={passwordSignIn || !sso}
+          signupRule={signupRule}
+          sso={sso}
+        />
+      )}
+    </PanelAuthLayout>
   );
 }
 
 function SignupClosedCard() {
   return (
-    <section className="panel w-full max-w-[460px] p-8 sm:p-10">
-      <div className="space-y-7">
-        <div className="space-y-2">
-          <p className="section-eyebrow">Create account</p>
-          <h1 className="text-[clamp(1.875rem,4.5vw,2.375rem)] font-extrabold leading-[1.08] tracking-[-0.035em] text-(--fg)">
-            Sign-up is closed
-          </h1>
-          <p className="pt-1 text-sm leading-6 text-muted-foreground">
-            New accounts are not being accepted on this site. If you were sent a
-            document to sign, use the link in that email. You do not need an
-            account.
-          </p>
-        </div>
-        <ShellButton className="w-full" href="/login" variant="primary">
-          Go to log in
-        </ShellButton>
+    <div className="space-y-6">
+      <div className="flex justify-center">
+        <img
+          src="https://panel.rustlabs.io/images/rustlabs-logo.png"
+          alt="RustLabs"
+          className="h-10 w-auto object-contain brightness-110 drop-shadow"
+        />
       </div>
-    </section>
+      <div className="text-center space-y-2">
+        <h2 className="text-xl font-bold tracking-[0.14em] text-white uppercase">
+          SIGN-UP IS CLOSED
+        </h2>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          New accounts are not being accepted on this site right now. If you were
+          sent a document to sign, use the link in that email. You do not need an
+          account to sign.
+        </p>
+      </div>
+      <Link
+        href="/login"
+        className="block w-full py-3.5 px-4 bg-gradient-to-r from-[#1034df] to-[#165cff] text-white font-bold text-xs tracking-widest uppercase rounded-lg text-center shadow-[0_4px_15px_rgba(16,52,223,0.4)]"
+      >
+        Go to sign in
+      </Link>
+    </div>
   );
 }
 
@@ -450,8 +539,6 @@ function LiveSignupShell({
     }
 
     setSuccessEmail(validationResult.data.email);
-    // With no email provider the confirmation email cannot have gone, so
-    // the sender is not told to wait for it (issue #95).
     setSuccessMessage(
       emailConnected
         ? defaultSuccessMessage
