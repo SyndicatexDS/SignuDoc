@@ -3298,7 +3298,9 @@ export async function sendDraftEnvelope(
     ),
     redirectPath: `/envelopes/${envelopeId}`,
     sentAt,
-    signingUrl: issuedLink.url,
+    signingUrl: firstSigners[0]
+      ? issuedLinks.get(firstSigners[0].id)?.url
+      : undefined,
   });
 }
 
