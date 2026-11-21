@@ -77,7 +77,7 @@ function describeSignatureLevel(level: SignatureLevel, providerName: string) {
     case "qualified":
       return `Qualified electronic signatures through ${providerName}`;
     default:
-      return "SignuDoc signatures";
+      return "Blueprint signatures";
   }
 }
 
@@ -158,6 +158,7 @@ export function ReviewShell({
         error?: string;
         notifiedSignerName?: string;
         redirectPath?: string;
+        signingUrl?: string;
       } | null;
 
       if (!response.ok) {
@@ -170,12 +171,24 @@ export function ReviewShell({
         payload?.notifiedSignerName?.trim() || firstSigner?.name || "Signer 1";
       const redirectPath = payload?.redirectPath || `/envelopes/${envelopeId}`;
 
+      if (payload?.signingUrl) {
+        try {
+          await navigator.clipboard.writeText(payload.signingUrl);
+        } catch {
+          // clipboard access not granted or unavailable
+        }
+      }
+
       setIsConfirmationOpen(false);
-      setNotice(buildSuccessMessage(notifiedSignerName));
+      setNotice(
+        payload?.signingUrl
+          ? `Envelope sent. Signing link copied to clipboard for ${notifiedSignerName} (ready for WhatsApp/email).`
+          : buildSuccessMessage(notifiedSignerName),
+      );
       setSendPhase("idle");
       sendTimeoutRef.current = window.setTimeout(() => {
         window.location.assign(redirectPath);
-      }, redirectDelayMs);
+      }, payload?.signingUrl ? 2400 : redirectDelayMs);
     } catch {
       setSendError(defaultSendErrorMessage);
       setSendPhase("error");

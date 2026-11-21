@@ -1,4 +1,8 @@
-import { SIGNUDOC_NAME, type Branding } from "../branding.ts";
+import {
+  BRAND_PARENT_NAME,
+  SIGNUDOC_NAME,
+  type Branding,
+} from "../branding.ts";
 import { getEnv, type EnvSource } from "../utils/env.ts";
 import { escapeHtml } from "../utils/html.ts";
 import { requireConfigValue } from "./service-config.ts";
@@ -94,8 +98,8 @@ export function withUserEmailLegalFooter(
     }
 
     const sentBy = branding.organizationName
-      ? `Sent by ${branding.organizationName} using ${SIGNUDOC_NAME}.`
-      : `Sent using ${SIGNUDOC_NAME}.`;
+      ? `Sent by ${branding.organizationName} via Blueprint (${BRAND_PARENT_NAME}).`
+      : `Sent via Blueprint (${BRAND_PARENT_NAME}).`;
 
     textLines.push("", sentBy);
     htmlLines.push(escapeHtml(sentBy));

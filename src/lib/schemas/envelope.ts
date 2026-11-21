@@ -79,6 +79,7 @@ export const sendEnvelopeResponseSchema = z.object({
   notifiedSignerName: z.string().trim().min(1).max(160),
   redirectPath: z.string().trim().min(1),
   sentAt: unixTimestampSchema,
+  signingUrl: z.string().url().optional(),
 });
 
 export const voidEnvelopeResponseSchema = z.object({
@@ -98,6 +99,7 @@ export const manualNudgeResponseSchema = z.object({
   sentAt: unixTimestampSchema,
   signerId: idSchema,
   signerName: z.string().trim().min(1).max(160),
+  signingUrl: z.string().url().optional(),
 });
 
 export const envelopeListFiltersSchema = z.object({

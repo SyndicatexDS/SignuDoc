@@ -7,8 +7,8 @@ import { resolvePublicSupportAddress } from "@/lib/public-contact";
 
 export const metadata: Metadata = {
   description:
-    "Read how SignuDoc collects, uses, shares, retains, and protects information for its public U.S. e-signature service.",
-  title: "Privacy Policy | SignuDoc",
+    "Read how Blueprint collects, uses, shares, retains, and protects information for its e-signature service.",
+  title: "Privacy Policy | Blueprint",
 };
 
 export default async function PrivacyPage() {
@@ -18,7 +18,7 @@ export default async function PrivacyPage() {
 
   return (
     <PublicDocumentShell
-      description="This Privacy Policy describes the categories of information SignuDoc collects, how we use and share that information, the rights available to users, and how to contact us with privacy requests."
+      description="This Privacy Policy describes the categories of information Blueprint collects, how we use and share that information, the rights available to users, and how to contact us with privacy requests."
       lastUpdated="March 25, 2026"
       title="Privacy Policy"
     >

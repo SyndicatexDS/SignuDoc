@@ -2748,6 +2748,7 @@ export async function sendDraftEnvelope(
     notifiedSignerName: firstSigner.name,
     redirectPath: `/envelopes/${envelopeId}`,
     sentAt,
+    signingUrl: issuedLink.url,
   });
 }
 

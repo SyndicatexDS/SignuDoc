@@ -247,7 +247,14 @@ export function EnvelopeDetailShell({
       });
       const payload = (await response.json().catch(() => null)) as {
         error?: string;
+        signingUrl?: string;
       } | null;
+
+      if (response.ok && payload?.signingUrl) {
+        try {
+          await navigator.clipboard.writeText(payload.signingUrl);
+        } catch {}
+      }
 
       if (
         response.ok ||

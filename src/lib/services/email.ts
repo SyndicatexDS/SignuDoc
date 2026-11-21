@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import nodemailer from "nodemailer";
 import { Resend } from "resend";
 
 import { getSettings } from "../settings.ts";
@@ -21,7 +22,7 @@ const EMAIL_ENV_KEYS = ["RESEND_API_KEY"] as const;
 const DEFAULT_CAPTURE_DIR = ".data/outbox";
 const DEFAULT_CAPTURE_SENDER_ADDRESS = "dev@signudoc.localhost";
 
-export type EmailDriver = "capture" | "resend";
+export type EmailDriver = "capture" | "resend" | "smtp";
 
 export type EmailAttachment = {
   content: Uint8Array;
@@ -192,12 +193,16 @@ export function resolveEmailDriver(env: EnvSource = process.env): EmailDriver {
     return "resend";
   }
 
-  if (configuredDriver === "capture" || configuredDriver === "resend") {
+  if (
+    configuredDriver === "capture" ||
+    configuredDriver === "resend" ||
+    configuredDriver === "smtp"
+  ) {
     return configuredDriver;
   }
 
   throw new Error(
-    `Unknown EMAIL_DRIVER "${configuredDriver}". Use "resend" or "capture".`,
+    `Unknown EMAIL_DRIVER "${configuredDriver}". Use "resend", "smtp", or "capture".`,
   );
 }
 
@@ -288,6 +293,77 @@ function createCaptureEmailService(
   };
 }
 
+/**
+ * Standard SMTP transport for self-hosted mail servers (e.g. mail.rustlabs.io).
+ */
+function createSmtpEmailService(
+  env: EnvSource,
+  resolveAddresses: () => Promise<EmailAddresses>,
+): EmailService {
+  const host = env.SMTP_HOST?.trim() || "mail.rustlabs.io";
+  const port = Number(env.SMTP_PORT?.trim()) || 587;
+  const secure = env.SMTP_SECURE === "true" || port === 465;
+  const user = env.SMTP_USER?.trim() || env.RESEND_FROM_EMAIL?.trim() || "info@rustlabs.io";
+  const pass = env.SMTP_PASSWORD?.trim();
+
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    ...(user && pass
+      ? {
+          auth: {
+            user,
+            pass,
+          },
+        }
+      : {}),
+  });
+
+  async function sendOne(
+    message: TransactionalEmailMessage,
+    config: EmailAddresses,
+  ): Promise<EmailDeliveryResult> {
+    const from = config.senderAddress || user;
+    const replyTo = message.replyTo ?? config.supportAddress ?? from;
+
+    const info = await transporter.sendMail({
+      from,
+      to: message.to,
+      replyTo,
+      subject: message.subject,
+      text: message.textBody,
+      html: message.htmlBody,
+      attachments: message.attachments?.map((attachment) => ({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        content: Buffer.from(attachment.content),
+      })),
+    });
+
+    return {
+      accepted: [message.to],
+      messageId: info.messageId,
+      rejected: [],
+    };
+  }
+
+  return {
+    async send(message) {
+      const config = await resolveAddresses();
+      return sendOne(message, config);
+    },
+    async sendBatch(messages) {
+      const config = await resolveAddresses();
+      const results: EmailDeliveryResult[] = [];
+      for (const message of messages) {
+        results.push(await sendOne(message, config));
+      }
+      return results;
+    },
+  };
+}
+
 /** The addresses this install sends from, as configured right now. */
 export async function resolveEmailAddresses(
   env: EnvSource = process.env,
@@ -322,6 +398,10 @@ export function createEmailService({
 }: CreateEmailServiceOptions = {}): EmailService {
   if (!resendClient && resolveEmailDriver(env) === "capture") {
     return createCaptureEmailService(env, resolveAddresses);
+  }
+
+  if (!resendClient && resolveEmailDriver(env) === "smtp") {
+    return createSmtpEmailService(env, resolveAddresses);
   }
 
   if (!resendClient) {

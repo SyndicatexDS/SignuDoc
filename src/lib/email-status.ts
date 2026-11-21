@@ -389,6 +389,26 @@ async function inspectEmail({
     };
   }
 
+  if (!domainsClient && resolveEmailDriver(env) === "smtp") {
+    const resolvedSettings = settings ?? (await getSettings(env));
+    const senderAddress =
+      extractEmailAddress(buildEmailAddresses(resolvedSettings).senderAddress) ||
+      readEnv(env, "SMTP_USER") ||
+      readEnv(env, "RESEND_FROM_EMAIL") ||
+      "info@rustlabs.io";
+
+    return {
+      client: null,
+      domainId: null,
+      markReady: noop,
+      status: {
+        domain: getAddressDomain(senderAddress) || "rustlabs.io",
+        senderAddress,
+        state: "ready",
+      },
+    };
+  }
+
   const client = domainsClient ?? createDomainsClient(env);
 
   if (!client) {
@@ -557,7 +577,8 @@ export function emailNeedsAttention(
   env: EnvSource = process.env,
 ): boolean {
   try {
-    if (resolveEmailDriver(env) === "capture") {
+    const driver = resolveEmailDriver(env);
+    if (driver === "capture" || driver === "smtp") {
       return false;
     }
   } catch {

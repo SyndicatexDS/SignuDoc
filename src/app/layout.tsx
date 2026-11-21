@@ -13,9 +13,9 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SignuDoc",
+  title: "Blueprint | RustLabs",
   description:
-    "Free e-signature software for small businesses. Upload, send, sign — no enterprise circus required.",
+    "Secure document signing by RustLabs.",
   icons: {
     icon: "/icon.svg",
   },

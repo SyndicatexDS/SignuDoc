@@ -7,8 +7,8 @@ import { resolvePublicSupportAddress } from "@/lib/public-contact";
 
 export const metadata: Metadata = {
   description:
-    "Read SignuDoc's accessibility statement, current accessibility features, known limitations, and how to request assistance.",
-  title: "Accessibility Statement | SignuDoc",
+    "Read Blueprint's accessibility statement, current accessibility features, known limitations, and how to request assistance.",
+  title: "Accessibility Statement | Blueprint",
 };
 
 export default async function AccessibilityPage() {
@@ -18,7 +18,7 @@ export default async function AccessibilityPage() {
 
   return (
     <PublicDocumentShell
-      description="SignuDoc is committed to improving accessibility for people with disabilities. This statement describes what is currently supported, the known limitations in our launch-stage product, and how to request assistance or accommodation."
+      description="Blueprint is committed to improving accessibility for people with disabilities. This statement describes what is currently supported, the known limitations in our launch-stage product, and how to request assistance or accommodation."
       lastUpdated="March 25, 2026"
       title="Accessibility Statement"
     >
@@ -27,7 +27,7 @@ export default async function AccessibilityPage() {
           Commitment
         </h2>
         <p>
-          We want SignuDoc to be usable by as many people as possible, including
+          We want Blueprint to be usable by as many people as possible, including
           people who rely on keyboard navigation, screen readers, zoom, or other
           assistive technologies. We use accessibility best practices and treat
           accessibility feedback as a product priority.

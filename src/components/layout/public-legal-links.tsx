@@ -3,7 +3,12 @@
 import Link from "next/link";
 
 import { useBranding } from "@/components/layout/branding-provider";
-import { SIGNUDOC_NAME, SIGNUDOC_URL } from "@/lib/branding";
+import {
+  BRAND_PARENT_NAME,
+  BRAND_PARENT_URL,
+  SIGNUDOC_NAME,
+  SIGNUDOC_URL,
+} from "@/lib/branding";
 import { PUBLIC_COPYRIGHT_YEAR, publicFooterLinks } from "@/lib/legal";
 import { cn } from "@/lib/cn";
 import { PERMITTED_USE_PATH } from "@/lib/permitted-uses";
@@ -111,11 +116,11 @@ export function PublicLegalFooter({
           {branding.hosted ? null : (
             <a
               className={resolvedLinkClassName}
-              href={SIGNUDOC_URL}
+              href={BRAND_PARENT_URL}
               rel="noreferrer"
               target="_blank"
             >
-              Powered by {SIGNUDOC_NAME}
+              Part of {BRAND_PARENT_NAME}
             </a>
           )}
         </div>

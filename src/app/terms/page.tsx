@@ -7,8 +7,8 @@ import { resolvePublicSupportAddress } from "@/lib/public-contact";
 
 export const metadata: Metadata = {
   description:
-    "Review the terms that govern use of the SignuDoc public e-signature service.",
-  title: "Terms of Service | SignuDoc",
+    "Review the terms that govern use of Blueprint e-signatures by RustLabs.",
+  title: "Terms of Service | Blueprint",
 };
 
 export default async function TermsPage() {
@@ -18,7 +18,7 @@ export default async function TermsPage() {
 
   return (
     <PublicDocumentShell
-      description="These Terms of Service govern your access to and use of SignuDoc. They are written for a launch-stage U.S. e-signature product intended for ordinary business agreements and commercial workflows."
+      description="These Terms of Service govern your access to and use of Blueprint. They are written for a launch-stage e-signature product intended for ordinary business agreements and commercial workflows."
       lastUpdated="March 21, 2026"
       title="Terms of Service"
     >

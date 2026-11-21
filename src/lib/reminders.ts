@@ -653,6 +653,7 @@ export async function sendManualEnvelopeNudge(
     sentAt: nowUnixTimestamp,
     signerId: persisted.signerId,
     signerName: persisted.signerName,
+    signingUrl: persisted.issuedLink.url,
   });
 }
 
