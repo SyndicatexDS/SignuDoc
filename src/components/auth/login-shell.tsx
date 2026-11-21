@@ -418,7 +418,7 @@ function LiveLoginShell({
         {/* Title */}
         <div className="text-center">
           <h2 className="text-xl font-bold tracking-[0.14em] text-white uppercase">
-            SIGN IN TO SIGNUDOC
+            SIGN IN TO BLUEPRINT
           </h2>
         </div>
 

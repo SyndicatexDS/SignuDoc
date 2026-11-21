@@ -33,7 +33,7 @@ export default async function AccessibilityPage() {
           accessibility feedback as a product priority.
         </p>
         <p>
-          SignuDoc is still a launch-stage product, and some parts of the
+          Blueprint is still a launch-stage product, and some parts of the
           experience are more accessible than others. This statement is intended
           to be candid about the current state of the product and the help that
           is available right now.
@@ -79,7 +79,7 @@ export default async function AccessibilityPage() {
           </li>
           <li>
             Some uploaded PDFs may contain scanned images, complex layouts, or
-            third-party accessibility issues that SignuDoc cannot fully correct
+            third-party accessibility issues that Blueprint cannot fully correct
             at display time.
           </li>
         </ul>
@@ -115,7 +115,7 @@ export default async function AccessibilityPage() {
         </h2>
         <p>
           We use WCAG 2.2 Level AA as a practical reference point when planning
-          improvements, but we do not claim that every part of SignuDoc fully
+          improvements, but we do not claim that every part of Blueprint fully
           conforms today.
         </p>
         <p>

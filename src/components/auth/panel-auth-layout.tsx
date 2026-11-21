@@ -61,7 +61,7 @@ export function PanelAuthLayout({ children }: PanelAuthLayoutProps) {
         {/* Bottom text banner */}
         <div className="relative z-10 space-y-2 max-w-md">
           <h1 className="text-4xl font-extrabold tracking-tight text-white drop-shadow-md">
-            SignuDoc
+            Blueprint
           </h1>
           <p className="text-sm text-gray-300 leading-relaxed drop-shadow">
             Secure electronic signatures, document workflows, and audit-grade verification by RustLabs.io.
