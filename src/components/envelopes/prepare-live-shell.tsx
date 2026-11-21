@@ -58,7 +58,11 @@ import {
   type DocumentPanGesture,
   DOCUMENT_ZOOM_STEP,
 } from "@/components/shared/document-viewport";
-import { getCachedDraftPdfBlob } from "@/lib/draft-pdf-cache";
+import {
+  cacheDraftPdfBlob,
+  deleteCachedDraftPdfBlob,
+  getCachedDraftPdfBlob,
+} from "@/lib/draft-pdf-cache";
 import {
   moveFieldRect,
   placeFieldAtViewportPoint,
@@ -483,13 +487,25 @@ function PrepareLiveShellContent({
           method: "POST",
         },
       );
+      const payload = (await res.json().catch(() => null)) as {
+        error?: string;
+        hash?: string;
+      } | null;
+
       if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
         alert(payload?.error ?? "Unable to replace the document.");
         return;
       }
+
+      try {
+        await deleteCachedDraftPdfBlob(envelopeId);
+        if (payload?.hash) {
+          await cacheDraftPdfBlob(envelopeId, file, payload.hash);
+        }
+      } catch (cacheErr) {
+        console.error("Failed to update cached draft preview", cacheErr);
+      }
+
       window.location.reload();
     } catch {
       alert("Unable to replace the document.");
@@ -582,7 +598,10 @@ function PrepareLiveShellContent({
 
     async function resolvePreferredDocumentUrl() {
       try {
-        const cachedPdfBlob = await getCachedDraftPdfBlob(envelopeId);
+        const cachedPdfBlob = await getCachedDraftPdfBlob(
+          envelopeId,
+          record.sourcePdfHash,
+        );
 
         if (!isActive) {
           return;
@@ -611,7 +630,7 @@ function PrepareLiveShellContent({
         URL.revokeObjectURL(localDocumentUrl);
       }
     };
-  }, [envelopeId, record.pdfUrl]);
+  }, [envelopeId, record.pdfUrl, record.sourcePdfHash]);
 
   useEffect(() => {
     // Leaving the page before the autosave ran would drop the last change.

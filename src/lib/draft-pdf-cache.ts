@@ -7,6 +7,7 @@ type DraftPdfCacheRecord = {
   blob: Blob;
   createdAt: number;
   envelopeId: string;
+  sourcePdfHash?: string;
 };
 
 let draftPdfCacheDbPromise: Promise<IDBDatabase | null> | null = null;
@@ -86,6 +87,7 @@ function runDraftPdfCacheTransaction<T>(
 export async function cacheDraftPdfBlob(
   envelopeId: string,
   blob: Blob,
+  sourcePdfHash?: string,
 ): Promise<void> {
   const database = await openDraftPdfCacheDatabase();
 
@@ -98,12 +100,14 @@ export async function cacheDraftPdfBlob(
       blob,
       createdAt: Date.now(),
       envelopeId,
+      sourcePdfHash,
     } satisfies DraftPdfCacheRecord),
   );
 }
 
 export async function getCachedDraftPdfBlob(
   envelopeId: string,
+  expectedSourcePdfHash?: string,
 ): Promise<Blob | null> {
   const database = await openDraftPdfCacheDatabase();
 
@@ -124,10 +128,18 @@ export async function getCachedDraftPdfBlob(
     return null;
   }
 
+  if (
+    expectedSourcePdfHash &&
+    (!record.sourcePdfHash || record.sourcePdfHash !== expectedSourcePdfHash)
+  ) {
+    await deleteCachedDraftPdfBlob(envelopeId);
+    return null;
+  }
+
   return record.blob;
 }
 
-async function deleteCachedDraftPdfBlob(envelopeId: string): Promise<void> {
+export async function deleteCachedDraftPdfBlob(envelopeId: string): Promise<void> {
   const database = await openDraftPdfCacheDatabase();
 
   if (!database) {

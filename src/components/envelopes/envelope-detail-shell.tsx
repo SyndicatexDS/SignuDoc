@@ -26,6 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { deleteCachedDraftPdfBlob } from "@/lib/draft-pdf-cache";
 import type {
   EnvelopeDetailData,
   EnvelopeDetailTimelineItem,
@@ -371,6 +372,7 @@ export function EnvelopeDetailShell({
       } | null;
 
       if (response.ok) {
+        await deleteCachedDraftPdfBlob(envelopeId).catch(() => undefined);
         window.location.reload();
         return;
       }
@@ -492,6 +494,7 @@ export function EnvelopeDetailShell({
       } | null;
 
       if (response.ok) {
+        await deleteCachedDraftPdfBlob(envelopeId).catch(() => undefined);
         window.location.reload();
         return;
       }

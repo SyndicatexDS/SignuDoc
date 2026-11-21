@@ -427,6 +427,7 @@ export type PrepareEnvelopeData = {
   pages: readonly EnvelopePageRecord[];
   pdfUrl: string;
   signers: readonly DraftSignerStepSigner[];
+  sourcePdfHash: string;
   status: EnvelopeRecord["status"];
   title: string;
 };
@@ -2462,7 +2463,7 @@ export async function getPrepareEnvelopeDataForUser(
     fieldsRevision,
     pageCount: envelope.pageCount,
     pages,
-    pdfUrl: `/api/envelopes/${encodeURIComponent(envelopeId)}/document`,
+    pdfUrl: `/api/envelopes/${encodeURIComponent(envelopeId)}/document?v=${encodeURIComponent(envelope.sourcePdfHash)}`,
     signers: signers.map((signer) => ({
       email: signer.email,
       id: signer.id,
@@ -2470,6 +2471,7 @@ export async function getPrepareEnvelopeDataForUser(
       order: signer.signOrder,
       step: signingStepOf(signer),
     })),
+    sourcePdfHash: envelope.sourcePdfHash,
     status: envelope.status,
     title: envelope.title,
   };
@@ -4951,6 +4953,7 @@ export async function replaceDraftEnvelopeDocument(
 
     return {
       filename: importedPdf.filename,
+      hash: importedPdf.sourceHash,
       id: parsedEnvelopeId,
       pageCount: importedPdf.pageCount,
     };
