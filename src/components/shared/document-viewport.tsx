@@ -164,7 +164,7 @@ export function DocumentZoomControls({
     <div className="inline-flex min-h-11 items-center gap-0.5 rounded-xl bg-(--surface) p-1">
       <button
         aria-label="Zoom out"
-        className="inline-flex size-9 items-center justify-center rounded-[0.5625rem] text-lg leading-none text-(--fg) transition hover:bg-white disabled:text-(--placeholder) disabled:hover:bg-transparent"
+        className="inline-flex size-9 items-center justify-center rounded-[0.5625rem] text-lg leading-none text-(--fg) transition hover:bg-(--surface-strong) disabled:text-(--placeholder) disabled:hover:bg-transparent"
         disabled={zoomLevel <= MIN_DOCUMENT_ZOOM_LEVEL}
         onClick={onDecrease}
         type="button"
@@ -176,7 +176,7 @@ export function DocumentZoomControls({
       </div>
       <button
         aria-label="Zoom in"
-        className="inline-flex size-9 items-center justify-center rounded-[0.5625rem] text-lg leading-none text-(--fg) transition hover:bg-white disabled:text-(--placeholder) disabled:hover:bg-transparent"
+        className="inline-flex size-9 items-center justify-center rounded-[0.5625rem] text-lg leading-none text-(--fg) transition hover:bg-(--surface-strong) disabled:text-(--placeholder) disabled:hover:bg-transparent"
         disabled={zoomLevel >= MAX_DOCUMENT_ZOOM_LEVEL}
         onClick={onIncrease}
         type="button"
@@ -184,7 +184,7 @@ export function DocumentZoomControls({
         +
       </button>
       <button
-        className="inline-flex min-h-9 items-center justify-center rounded-[0.5625rem] px-3 text-[0.8125rem] font-semibold text-(--secondary) transition hover:bg-white hover:text-(--fg)"
+        className="inline-flex min-h-9 items-center justify-center rounded-[0.5625rem] px-3 text-[0.8125rem] font-semibold text-(--secondary) transition hover:bg-(--surface-strong) hover:text-(--fg)"
         onClick={onReset}
         type="button"
       >

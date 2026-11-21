@@ -36,31 +36,29 @@
   --radius-2xl: calc(var(--radius) * 1.5);
   --radius-3xl: calc(var(--radius) * 1.75);
   --radius-4xl: calc(var(--radius) * 2.25);
-  --shadow-xs: 0 1px 2px rgba(28, 29, 43, 0.05);
-  --shadow-sm: 0 1px 3px rgba(28, 29, 43, 0.08);
-  --shadow: 0 2px 6px rgba(28, 29, 43, 0.05);
-  --shadow-md: 0 10px 30px rgba(28, 29, 43, 0.08);
-  --shadow-lg: 0 18px 40px rgba(28, 29, 43, 0.12);
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 18px 40px rgba(0, 0, 0, 0.65);
 }
 
 /*
- * Soft Studio. A pale blue-grey page, white rounded cards that sit on it
- * without borders, one violet for anything the person can act on, and
- * status shown as tinted pills. Red is kept for errors and for actions that
- * cannot be undone.
+ * Blueprint Studio. Deep space dark theme tuned for RustLabs with high-contrast
+ * text, elevated surface tiers, luminous accents and tinted status indicators.
  */
 :root {
-  --page: #f3f4f8;
-  --bg: #f3f4f8;
-  --paper: #ffffff;
-  --paper-raised: #ffffff;
-  --fg: #1c1d2b;
-  --secondary: #575a6e;
-  --tertiary: #6e7183;
-  --placeholder: #8b8ea0;
+  color-scheme: dark;
+  --page: #0b0c10;
+  --bg: #0b0c10;
+  --paper: #12131b;
+  --paper-raised: #181a24;
+  --fg: #f3f4f8;
+  --secondary: #9da0b5;
+  --tertiary: #6f7287;
+  --placeholder: #53566b;
   /*
-   * The accent and its shades. An install with its own color replaces all
-   * of these together, from a rule the layout adds (see brand-color.ts).
+   * The accent and its shades. Keep in step with brand-color.ts.
    */
   --accent: #5340d6;
   --accent-rgb: 83 64 214;
@@ -69,33 +67,42 @@
   --accent-soft-hover: #e0dbfb;
   --accent-softer: #f4f2ff;
   --accent-ink: #4433b8;
-  --danger: #b42318;
-  --danger-hover: #912018;
-  --danger-soft: #fdebea;
-  --success: #16704a;
-  --success-soft: #e3f6ec;
-  --warning: #8a5300;
-  --warning-soft: #fdf1d8;
-  --surface: #f6f6fa;
-  --surface-strong: #e6e7ee;
-  --shell-surface: #ffffff;
-  --border: #e6e7ee;
-  --border-strong: #cfd0dc;
-  --border-hover: #b4b6c6;
-  --hover: rgba(28, 29, 43, 0.05);
-  --shell-wash: #f3f4f8;
-  --canvas-wash: #e9eaf1;
-  --shadow-soft: 0 18px 40px rgba(28, 29, 43, 0.12);
-  --shadow-card: 0 2px 6px rgba(28, 29, 43, 0.04);
-  --shadow-lift: 0 10px 30px rgba(28, 29, 43, 0.08);
-  --signer-1: #2563eb;
-  --signer-1-tint: rgba(37, 99, 235, 0.12);
-  --signer-2: #9333ea;
-  --signer-2-tint: rgba(147, 51, 234, 0.12);
-  --signer-3: #b45309;
-  --signer-3-tint: rgba(217, 119, 6, 0.14);
-  --signer-4: #047857;
-  --signer-4-tint: rgba(5, 150, 105, 0.12);
+
+  --accent: #6d5dfc;
+  --accent-rgb: 109 93 252;
+  --accent-hover: #5d4ce8;
+  --accent-soft: rgba(109, 93, 252, 0.18);
+  --accent-soft-hover: rgba(109, 93, 252, 0.28);
+  --accent-softer: rgba(109, 93, 252, 0.12);
+  --accent-ink: #aba1ff;
+
+  --danger: #f04438;
+  --danger-hover: #dc2626;
+  --danger-soft: rgba(240, 68, 56, 0.18);
+  --success: #12b76a;
+  --success-soft: rgba(18, 183, 106, 0.18);
+  --warning: #f79009;
+  --warning-soft: rgba(247, 144, 9, 0.18);
+  --surface: #181923;
+  --surface-strong: #222432;
+  --shell-surface: #12131b;
+  --border: #212330;
+  --border-strong: #2c2f42;
+  --border-hover: #3d425c;
+  --hover: rgba(255, 255, 255, 0.06);
+  --shell-wash: #0b0c10;
+  --canvas-wash: #0e0f15;
+  --shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lift: 0 10px 30px rgba(0, 0, 0, 0.5);
+  --signer-1: #3b82f6;
+  --signer-1-tint: rgba(59, 130, 246, 0.18);
+  --signer-2: #a855f7;
+  --signer-2-tint: rgba(168, 85, 247, 0.18);
+  --signer-3: #f59e0b;
+  --signer-3-tint: rgba(245, 158, 11, 0.18);
+  --signer-4: #10b981;
+  --signer-4-tint: rgba(16, 185, 129, 0.18);
   --radius: 0.75rem;
 }
 
@@ -151,7 +158,7 @@
     -webkit-appearance: none;
     -moz-appearance: none;
     cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23575a6e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239da0b5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.875rem center;
     background-size: 1rem 1rem;
@@ -218,23 +225,26 @@
 }
 
 @layer components {
-  /* A white card on the page. The main container on every screen. */
+  /* A dark card on the page. The main container on every screen. */
   .panel {
     position: relative;
     border-radius: 1.5rem;
     background: var(--paper);
+    border: 1px solid var(--border);
   }
 
   /* A tinted well inside a card: a signer row, a summary, an empty state. */
   .well {
     border-radius: 1rem;
     background: var(--surface);
+    border: 1px solid var(--border);
   }
 
   /* A card that floats above the page: a signing sheet, a popover. */
   .panel-raised {
     border-radius: 1.25rem;
-    background: var(--paper);
+    background: var(--paper-raised);
+    border: 1px solid var(--border-strong);
     box-shadow: var(--shadow-soft);
   }
 
@@ -286,7 +296,7 @@
   }
 
   .pill-neutral {
-    background: #eeeff4;
+    background: var(--surface-strong);
     color: var(--secondary);
   }
 
@@ -297,7 +307,8 @@
     flex-wrap: wrap;
     gap: 0.125rem;
     border-radius: 0.75rem;
-    background: var(--surface-strong);
+    background: var(--surface);
+    border: 1px solid var(--border);
     padding: 0.25rem;
   }
 
@@ -326,9 +337,9 @@
   .segmented-item[aria-pressed="true"],
   .segmented-item[aria-selected="true"],
   .segmented-item[data-active="true"] {
-    background: var(--paper);
+    background: var(--surface-strong);
     color: var(--fg);
-    box-shadow: 0 1px 3px rgba(28, 29, 43, 0.12);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
   }
 
   /* A text field drawn without the Input component. */
@@ -338,7 +349,7 @@
     min-width: 0;
     border: 1.5px solid var(--border-strong);
     border-radius: 0.75rem;
-    background: var(--paper);
+    background: var(--surface);
     padding: 0.625rem 1rem;
     font-size: 0.875rem;
     color: var(--fg);
@@ -350,7 +361,7 @@
 
   /* .field-input's background shorthand clears the chevron, so add it back. */
   select.field-input {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23575a6e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239da0b5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.875rem center;
     background-size: 1rem 1rem;
@@ -370,13 +381,13 @@
   .field-input:disabled {
     cursor: not-allowed;
     /* background-color, not the shorthand, so a select keeps its chevron. */
-    background-color: var(--surface);
-    color: var(--secondary);
+    background-color: var(--surface-strong);
+    color: var(--placeholder);
   }
 
   .field-input[aria-invalid="true"] {
     border-color: var(--danger);
-    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12);
+    box-shadow: 0 0 0 3px rgba(240, 68, 56, 0.2);
   }
 
   /* A small secondary button: move, remove, copy, zoom. */
@@ -388,7 +399,7 @@
     gap: 0.375rem;
     border: 1.5px solid var(--border-strong);
     border-radius: 0.75rem;
-    background: var(--paper);
+    background: var(--surface);
     padding: 0 0.875rem;
     font-size: 0.8125rem;
     font-weight: 700;
@@ -402,8 +413,8 @@
 
   .btn-quiet:hover:not(:disabled) {
     border-color: var(--accent);
-    background: var(--accent-softer);
-    color: var(--accent-ink);
+    background: var(--surface-strong);
+    color: var(--fg);
   }
 
   .btn-quiet:disabled,
@@ -451,7 +462,7 @@
   [data-paper-grid] {
     background-color: var(--canvas-wash);
     background-image: radial-gradient(
-      rgba(28, 29, 43, 0.07) 1px,
+      rgba(255, 255, 255, 0.08) 1px,
       transparent 1px
     );
     background-position: center center;

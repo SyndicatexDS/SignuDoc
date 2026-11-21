@@ -184,8 +184,8 @@ function AppNavLink({
       className={cn(
         "inline-flex min-h-9 shrink-0 items-center rounded-[0.625rem] px-3.5 text-sm transition",
         isActive
-          ? "bg-white font-bold text-(--fg) shadow-(--shadow-xs)"
-          : "font-semibold text-(--secondary) hover:bg-[rgba(255,255,255,0.6)] hover:text-(--fg)",
+          ? "bg-(--paper) font-bold text-(--fg) shadow-(--shadow-xs)"
+          : "font-semibold text-(--secondary) hover:bg-(--surface) hover:text-(--fg)",
       )}
       href={item.href}
     >

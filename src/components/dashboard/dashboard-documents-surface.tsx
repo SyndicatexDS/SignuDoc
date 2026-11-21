@@ -217,7 +217,7 @@ export function DashboardDocumentsPanel({
           {view === "all" ? (
             <input name="view" type="hidden" value="all" />
           ) : null}
-          <label className="flex min-h-[2.625rem] w-full items-center gap-2.5 rounded-xl bg-white px-3.5 text-(--tertiary) transition focus-within:ring-3 focus-within:ring-ring/50">
+          <label className="flex min-h-[2.625rem] w-full items-center gap-2.5 rounded-xl border border-(--border) bg-(--surface) px-3.5 text-(--tertiary) transition focus-within:ring-3 focus-within:ring-ring/50">
             <SearchIcon aria-hidden="true" className="size-4 shrink-0" />
             <input
               aria-label="Search by title or email..."
