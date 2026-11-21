@@ -59,6 +59,7 @@ export default async function EmbedSignPage({
     | "already-signed"
     | "completed"
     | "declined"
+    | "draft"
     | "error"
     | "expired"
     | "voided"

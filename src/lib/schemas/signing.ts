@@ -20,6 +20,7 @@ export const signingUnavailableStateSchema = z.enum([
   "completed",
   "voided",
   "declined",
+  "draft",
 ]);
 
 const signingFieldBaseSchema = z.object({

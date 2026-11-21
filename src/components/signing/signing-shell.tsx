@@ -13,7 +13,13 @@ import {
 } from "./signing-live-shell";
 
 type SigningUnavailableState =
-  "already-signed" | "completed" | "declined" | "error" | "expired" | "voided";
+  | "already-signed"
+  | "completed"
+  | "declined"
+  | "draft"
+  | "error"
+  | "expired"
+  | "voided";
 
 type SigningShellProps = {
   /**
@@ -41,6 +47,11 @@ const tokenStateCopy: Record<
   expired: {
     title: "This link has expired",
     description: "Request a new signing link from the sender.",
+  },
+  draft: {
+    title: "Document being updated",
+    description:
+      "The sender is currently editing or updating this document. You will be able to sign once the sender finishes their changes.",
   },
   "already-signed": {
     title: "You've already signed",

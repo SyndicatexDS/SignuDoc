@@ -35,6 +35,7 @@ export default async function SignPage({
     | "already-signed"
     | "completed"
     | "declined"
+    | "draft"
     | "error"
     | "expired"
     | "voided"

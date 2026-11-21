@@ -288,6 +288,7 @@ const signingUnavailableStatusCodeMap: Record<
   "already-signed": 409,
   completed: 409,
   declined: 409,
+  draft: 409,
   expired: 410,
   voided: 409,
 };
@@ -317,6 +318,8 @@ function getSigningUnavailableMessage(
       return "This envelope has been completed.";
     case "declined":
       return "This envelope has been declined.";
+    case "draft":
+      return "This document is currently being updated by the sender.";
     case "voided":
       return "This envelope has been voided.";
     case "expired":
@@ -1949,6 +1952,8 @@ async function getSpentSigningLinkState(
   );
 
   switch (spent?.envelopeStatus) {
+    case "draft":
+      return "draft";
     case "completed":
       return "completed";
     case "declined":
@@ -1985,6 +1990,10 @@ async function resolveSigningContext(
 
   if (!envelopeRow) {
     throw new SigningAccessError("expired");
+  }
+
+  if (envelopeRow.status === "draft") {
+    throw new SigningAccessError("draft");
   }
 
   if (envelopeRow.status === "voided") {
