@@ -169,6 +169,8 @@ type SendDraftEnvelopeInput = {
   delivery?: "email" | "embedded";
   /** How many days signers get. The default applies when left out. */
   expiresInDays?: number;
+  /** Notification mode: "all" (default), "unnotified_only", or "none". */
+  notifyMode?: "all" | "unnotified_only" | "none";
   /** Days between automatic reminders. Null or left out means none. */
   reminderIntervalDays?: number | null;
   /**
@@ -372,6 +374,7 @@ export type ReviewSignerSummary = {
   order: number;
   /** The step of the signing order; signers who share one sign together. */
   step: number;
+  wasPreviouslyNotified?: boolean;
 };
 
 export type ReviewEnvelopeData = {
@@ -391,6 +394,7 @@ export type ReviewEnvelopeData = {
   sizeLabel: string;
   status: EnvelopeRecord["status"];
   title: string;
+  wasPreviouslySent?: boolean;
 };
 
 export type DraftSignerStepSigner = {
@@ -2488,12 +2492,42 @@ export async function getReviewEnvelopeDataForUser(
     return null;
   }
 
-  const [signersByEnvelope, fieldsByEnvelope, copyRecipients] =
-    await Promise.all([
-      listSignersForEnvelopeIds([envelopeId], database),
-      listFieldsForEnvelopeIds([envelopeId], database),
-      listCopyRecipientsForEnvelopeId(envelopeId, database),
-    ]);
+  const [
+    signersByEnvelope,
+    fieldsByEnvelope,
+    copyRecipients,
+    previousSentEvents,
+    notifiedAuditEvents,
+  ] = await Promise.all([
+    listSignersForEnvelopeIds([envelopeId], database),
+    listFieldsForEnvelopeIds([envelopeId], database),
+    listCopyRecipientsForEnvelopeId(envelopeId, database),
+    queryMany<{ count: number }>(
+      database,
+      `SELECT count(*)::int AS count FROM audit_events WHERE envelope_id = $1 AND event = 'sent'`,
+      [envelopeId],
+    ),
+    queryMany<{ email: string; signerId: string }>(
+      database,
+      `
+      SELECT DISTINCT lower(actor_email) AS email, metadata->>'signerId' AS "signerId"
+      FROM audit_events
+      WHERE envelope_id = $1 AND event IN ('sent', 'email_sent', 'reminded_manual', 'reminded_auto')
+      `,
+      [envelopeId],
+    ),
+  ]);
+  const wasPreviouslySent = (previousSentEvents[0]?.count ?? 0) > 0;
+  const notifiedEmailSet = new Set(
+    notifiedAuditEvents
+      .map((r) => r.email?.toLowerCase())
+      .filter((e): e is string => Boolean(e)),
+  );
+  const notifiedIdSet = new Set(
+    notifiedAuditEvents
+      .map((r) => r.signerId)
+      .filter((id): id is string => Boolean(id)),
+  );
   const signers = signersByEnvelope.get(envelopeId) ?? [];
   const fields = fieldsByEnvelope.get(envelopeId) ?? [];
   const fieldsBySigner = buildFieldsBySigner(fields);
@@ -2532,10 +2566,15 @@ export async function getReviewEnvelopeDataForUser(
       name: signer.name,
       order: signer.signOrder,
       step: signingStepOf(signer),
+      wasPreviouslyNotified:
+        Boolean(signer.lastNotifiedAt) ||
+        notifiedIdSet.has(signer.id) ||
+        notifiedEmailSet.has(signer.email.toLowerCase()),
     })),
     sizeLabel: formatFileSize(envelope.sourcePdfSizeBytes),
     status: envelope.status,
     title: envelope.title,
+    wasPreviouslySent,
   };
 }
 
@@ -2876,16 +2915,58 @@ export async function sendDraftEnvelope(
   const sentAt = Math.floor(Date.now() / 1000);
   const sentAuditAt = Math.max(sentAt, envelope.createdAt + 1);
   const expiresAt = deadlineFromDays(sentAt, input.expiresInDays);
+  const notifyMode = input.notifyMode ?? "all";
+
+  const [notifiedAuditEvents] = await Promise.all([
+    queryMany<{ email: string; signerId: string }>(
+      database,
+      `
+      SELECT DISTINCT lower(actor_email) AS email, metadata->>'signerId' AS "signerId"
+      FROM audit_events
+      WHERE envelope_id = $1 AND event IN ('sent', 'email_sent', 'reminded_manual', 'reminded_auto')
+      `,
+      [envelopeId],
+    ),
+  ]);
+  const notifiedEmailSet = new Set(
+    notifiedAuditEvents
+      .map((r) => r.email?.toLowerCase())
+      .filter((e): e is string => Boolean(e)),
+  );
+  const notifiedIdSet = new Set(
+    notifiedAuditEvents
+      .map((r) => r.signerId)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const isPreviouslyNotifiedSigner = (signer: {
+    email: string;
+    id: string;
+    lastNotifiedAt?: number | null;
+  }) => {
+    return (
+      Boolean(signer.lastNotifiedAt) ||
+      notifiedIdSet.has(signer.id) ||
+      notifiedEmailSet.has(signer.email.toLowerCase())
+    );
+  };
+
   const issuedLinks = new Map<string, IssuedSigningLink>();
 
   for (const signer of firstSigners) {
-    issuedLinks.set(
-      signer.id,
-      await issueSigningLink({
-        expiresInSeconds: expiresAt - sentAt,
-        issuedAt: sentAt,
-      }),
-    );
+    const shouldKeepExisting =
+      notifyMode === "unnotified_only" &&
+      isPreviouslyNotifiedSigner(signer) &&
+      Boolean(signer.signingTokenHash);
+
+    if (!shouldKeepExisting) {
+      issuedLinks.set(
+        signer.id,
+        await issueSigningLink({
+          expiresInSeconds: expiresAt - sentAt,
+          issuedAt: sentAt,
+        }),
+      );
+    }
   }
 
   try {
@@ -2960,11 +3041,9 @@ export async function sendDraftEnvelope(
           UPDATE signers
           SET
             status = 'pending',
-            signing_token_hash = NULL,
             spent_signing_token_hash = NULL,
             signing_token_expires_at = NULL,
             turn_started_at = NULL,
-            last_notified_at = NULL,
             last_nudged_at = NULL,
             signed_at = NULL,
             declined_at = NULL,
@@ -3024,7 +3103,15 @@ export async function sendDraftEnvelope(
       }
 
       for (const signer of firstSigners) {
-        const issuedLink = issuedLinks.get(signer.id)!;
+        const keepExisting =
+          notifyMode === "unnotified_only" &&
+          isPreviouslyNotifiedSigner(signer) &&
+          Boolean(signer.signingTokenHash);
+
+        const tokenHash = keepExisting
+          ? signer.signingTokenHash!
+          : issuedLinks.get(signer.id)!.tokenHash;
+
         const updatedSigner = await tx.query(
           `
             UPDATE signers
@@ -3033,14 +3120,14 @@ export async function sendDraftEnvelope(
               signing_token_hash = $1,
               signing_token_expires_at = $2,
               turn_started_at = $3,
-              last_notified_at = $4,
+              last_notified_at = COALESCE(last_notified_at, $4),
               updated_at = $5
             WHERE id = $6
               AND envelope_id = $7
           `,
           [
-            issuedLink.tokenHash,
-            issuedLink.exp,
+            tokenHash,
+            expiresAt,
             sentAt,
             sentAt,
             sentAt,
@@ -3056,6 +3143,19 @@ export async function sendDraftEnvelope(
           );
         }
       }
+
+      const firstSignerIdList = firstSigners.map((s) => s.id);
+      await tx.query(
+        `
+          UPDATE signers
+          SET
+            signing_token_hash = NULL,
+            signing_token_expires_at = NULL
+          WHERE envelope_id = $1
+            AND id != ALL($2::text[])
+        `,
+        [envelopeId, firstSignerIdList],
+      );
 
       await recordAuditEvent(
         {
@@ -3073,6 +3173,7 @@ export async function sendDraftEnvelope(
             reminderIntervalDays: input.reminderIntervalDays ?? null,
             permittedUseConfirmed: true,
             permittedUseVersion: PERMITTED_USE_VERSION,
+            notifyMode,
             ...(part11 ? { part11: true } : {}),
             ...(signingProvider
               ? {
@@ -3125,122 +3226,26 @@ export async function sendDraftEnvelope(
     });
   }
 
-  // The first invitation decides whether the envelope went out. If it
-  // fails, nothing has been delivered, and the envelope goes back to being
-  // a draft. Once one has been accepted the envelope is out: a later one
-  // that fails is logged, and the sender's reminder (or the automatic one)
-  // sends that signer a new link.
+  const signersToEmail =
+    notifyMode === "none"
+      ? []
+      : notifyMode === "unnotified_only"
+        ? firstSigners.filter(
+            (signer) =>
+              !isPreviouslyNotifiedSigner(signer) || !signer.signingTokenHash,
+          )
+        : firstSigners;
+
   const invitationMessageIds = new Map<string, string | undefined>();
   let branding: Branding;
 
-  try {
-    branding = await getBranding();
-    invitationMessageIds.set(
-      firstSigner.id,
-      (
-        await emailService.send(
-          buildSigningInvitationEmail({
-            branding,
-            envelopeTitle: envelope.title,
-            expiresAt,
-            senderName: input.senderName,
-            signerEmail: firstSigner.email,
-            signerName: firstSigner.name,
-            signingUrl: issuedLinks.get(firstSigner.id)!.url,
-          }),
-        )
-      ).messageId,
-    );
-  } catch (error) {
-    await withTransaction(async (tx) => {
-      const revertedEnvelope = await tx.query(
-        `
-          UPDATE envelopes
-          SET
-            status = 'draft',
-            sent_at = NULL,
-            expires_at = NULL,
-            reminder_interval_days = NULL,
-            part11 = false,
-            signature_level = 'simple',
-            signature_provider = NULL,
-            updated_at = $1
-          WHERE id = $2
-            AND user_id = $3
-            AND status = 'sent'
-        `,
-        [envelope.updatedAt, envelopeId, userId],
-      );
+  if (signersToEmail.length > 0) {
+    const firstEmailSigner = signersToEmail[0];
 
-      // Something else ended the envelope after it went out (it was voided,
-      // say). Its signers and history are that envelope's now: leave them.
-      if (revertedEnvelope.rowCount !== 1) {
-        return;
-      }
-
-      await tx.query(
-        `
-          UPDATE signers
-          SET
-            status = 'pending',
-            signing_token_hash = NULL,
-            spent_signing_token_hash = NULL,
-            signing_token_expires_at = NULL,
-            turn_started_at = NULL,
-            last_notified_at = NULL,
-            last_nudged_at = NULL,
-            signed_at = NULL,
-            declined_at = NULL,
-            decline_reason = NULL,
-            user_id = NULL,
-            updated_at = $1
-          WHERE envelope_id = $2
-        `,
-        [envelope.updatedAt, envelopeId],
-      );
-
-      await lockEnvelopeAuditChain(envelopeId, tx);
-      await tx.query(
-        `
-          DELETE FROM audit_events
-          WHERE envelope_id = $1
-            AND event = 'sent'
-            AND created_at = $2
-            AND actor_email = $3
-            -- Only while it is still the newest link of the audit chain: an
-            -- event recorded after it (say, the invitation was opened before
-            -- the send failed) chains to it, so it stays as history.
-            AND sequence = (
-              SELECT max(sequence) FROM audit_events WHERE envelope_id = $1
-            )
-        `,
-        [envelopeId, sentAuditAt, input.senderEmail],
-      );
-      // The envelope.sent webhook was held for the invitation (see
-      // releaseSentWebhook below); it did not go out, so there is nothing
-      // to tell, whatever happened to the delivery meanwhile.
-      await tx.query(
-        `
-          DELETE FROM webhook_deliveries
-          WHERE envelope_id = $1 AND event_type = 'envelope.sent'
-            AND status = 'pending'
-        `,
-        [envelopeId],
-      );
-    }, database).catch((rollbackError) => {
-      console.error(
-        `Failed to roll back sent envelope ${envelopeId} after email delivery failure:`,
-        rollbackError,
-      );
-    });
-
-    throw error;
-  }
-
-  for (const signer of firstSigners.slice(1)) {
     try {
+      branding = await getBranding();
       invitationMessageIds.set(
-        signer.id,
+        firstEmailSigner.id,
         (
           await emailService.send(
             buildSigningInvitationEmail({
@@ -3248,36 +3253,136 @@ export async function sendDraftEnvelope(
               envelopeTitle: envelope.title,
               expiresAt,
               senderName: input.senderName,
-              signerEmail: signer.email,
-              signerName: signer.name,
-              signingUrl: issuedLinks.get(signer.id)!.url,
+              signerEmail: firstEmailSigner.email,
+              signerName: firstEmailSigner.name,
+              signingUrl: issuedLinks.get(firstEmailSigner.id)!.url,
             }),
           )
         ).messageId,
       );
     } catch (error) {
-      console.error(
-        `Failed to send the invitation for envelope ${envelopeId} to ${signer.email}:`,
-        error,
+      await withTransaction(async (tx) => {
+        const revertedEnvelope = await tx.query(
+          `
+            UPDATE envelopes
+            SET
+              status = 'draft',
+              sent_at = NULL,
+              expires_at = NULL,
+              reminder_interval_days = NULL,
+              part11 = false,
+              signature_level = 'simple',
+              signature_provider = NULL,
+              updated_at = $1
+            WHERE id = $2
+              AND user_id = $3
+              AND status = 'sent'
+          `,
+          [envelope.updatedAt, envelopeId, userId],
+        );
+
+        // Something else ended the envelope after it went out (it was voided,
+        // say). Its signers and history are that envelope's now: leave them.
+        if (revertedEnvelope.rowCount !== 1) {
+          return;
+        }
+
+        await tx.query(
+          `
+            UPDATE signers
+            SET
+              status = 'pending',
+              signing_token_hash = NULL,
+              spent_signing_token_hash = NULL,
+              signing_token_expires_at = NULL,
+              turn_started_at = NULL,
+              last_notified_at = NULL,
+              last_nudged_at = NULL,
+              signed_at = NULL,
+              declined_at = NULL,
+              decline_reason = NULL,
+              user_id = NULL,
+              updated_at = $1
+            WHERE envelope_id = $2
+          `,
+          [envelope.updatedAt, envelopeId],
+        );
+
+        await lockEnvelopeAuditChain(envelopeId, tx);
+        await tx.query(
+          `
+            DELETE FROM audit_events
+            WHERE envelope_id = $1
+              AND event = 'sent'
+              AND created_at = $2
+              AND actor_email = $3
+              AND sequence = (
+                SELECT max(sequence) FROM audit_events WHERE envelope_id = $1
+              )
+          `,
+          [envelopeId, sentAuditAt, input.senderEmail],
+        );
+
+        await tx.query(
+          `
+            DELETE FROM webhook_deliveries
+            WHERE envelope_id = $1 AND event_type = 'envelope.sent'
+              AND status = 'pending'
+          `,
+          [envelopeId],
+        );
+      }, database).catch((rollbackError) => {
+        console.error(
+          `Failed to roll back sent envelope ${envelopeId} after email delivery failure:`,
+          rollbackError,
+        );
+      });
+
+      throw error;
+    }
+
+    for (const signer of signersToEmail.slice(1)) {
+      try {
+        invitationMessageIds.set(
+          signer.id,
+          (
+            await emailService.send(
+              buildSigningInvitationEmail({
+                branding,
+                envelopeTitle: envelope.title,
+                expiresAt,
+                senderName: input.senderName,
+                signerEmail: signer.email,
+                signerName: signer.name,
+                signingUrl: issuedLinks.get(signer.id)!.url,
+              }),
+            )
+          ).messageId,
+        );
+      } catch (error) {
+        console.error(
+          `Failed to send the invitation for envelope ${envelopeId} to ${signer.email}:`,
+          error,
+        );
+      }
+    }
+
+    for (const signer of signersToEmail) {
+      if (!invitationMessageIds.has(signer.id)) {
+        continue;
+      }
+
+      await recordEmailSent(
+        {
+          envelopeId,
+          messageId: invitationMessageIds.get(signer.id),
+          recipient: signer.email,
+          signerId: signer.id,
+          template: "signing_invitation",
+        },
+        database,
       );
     }
-  }
-
-  for (const signer of firstSigners) {
-    if (!invitationMessageIds.has(signer.id)) {
-      continue;
-    }
-
-    await recordEmailSent(
-      {
-        envelopeId,
-        messageId: invitationMessageIds.get(signer.id),
-        recipient: signer.email,
-        signerId: signer.id,
-        template: "signing_invitation",
-      },
-      database,
-    );
   }
 
   // Only now that the invitations are out is the envelope really sent.
@@ -3289,20 +3394,27 @@ export async function sendDraftEnvelope(
     );
   });
 
+  const notifiedSignerName =
+    notifyMode === "none"
+      ? "Manual link distribution (no emails sent)"
+      : signersToEmail.length === 0
+        ? "Existing signers (links active)"
+        : describeNotifiedSigners(
+            signersToEmail
+              .filter((signer) => invitationMessageIds.has(signer.id))
+              .map((signer) => signer.name),
+          ) || firstSigners[0]?.name || "Signer";
+
   return sendEnvelopeResponseSchema.parse({
     envelopeId,
     expiresAt,
-    // Only those whose invitation went out.
-    notifiedSignerName: describeNotifiedSigners(
-      firstSigners
-        .filter((signer) => invitationMessageIds.has(signer.id))
-        .map((signer) => signer.name),
-    ),
+    notifiedSignerName,
     redirectPath: `/envelopes/${envelopeId}`,
     sentAt,
-    signingUrl: firstSigners[0]
-      ? issuedLinks.get(firstSigners[0].id)?.url
-      : undefined,
+    signingUrl:
+      notifyMode === "none" && firstSigners[0]
+        ? issuedLinks.get(firstSigners[0].id)?.url
+        : undefined,
   });
 }
 
@@ -4752,11 +4864,10 @@ export async function correctSentEnvelope(
         signed_at = null,
         declined_at = null,
         decline_reason = null,
-        signing_token_hash = null,
+        signing_token_hash = coalesce(signing_token_hash, spent_signing_token_hash),
         signing_token_expires_at = null,
         spent_signing_token_hash = null,
         turn_started_at = null,
-        last_notified_at = null,
         last_nudged_at = null,
         email_code_hash = null,
         email_code_expires_at = null,

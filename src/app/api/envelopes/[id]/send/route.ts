@@ -23,6 +23,7 @@ type EnvelopeSendRouteContext = {
 
 type SendEnvelopeRequest = {
   expiresInDays?: unknown;
+  notifyMode?: unknown;
   reminderIntervalDays?: unknown;
   signatureLevel?: unknown;
   permittedUseConfirmed?: boolean;
@@ -71,6 +72,7 @@ export async function POST(
 
   const options = sendEnvelopeOptionsSchema.safeParse({
     expiresInDays: body.expiresInDays ?? undefined,
+    notifyMode: body.notifyMode ?? undefined,
     reminderIntervalDays: body.reminderIntervalDays ?? undefined,
     signatureLevel: body.signatureLevel ?? undefined,
   });
@@ -91,6 +93,7 @@ export async function POST(
       id,
       {
         expiresInDays: options.data.expiresInDays,
+        notifyMode: options.data.notifyMode,
         reminderIntervalDays: options.data.reminderIntervalDays,
         signatureLevel: options.data.signatureLevel,
         ipAddress,

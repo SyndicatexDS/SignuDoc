@@ -49,6 +49,7 @@ export const reminderIntervalDaysSchema = z
 /** What the sender chooses on the last step before sending. */
 export const sendEnvelopeOptionsSchema = z.object({
   expiresInDays: deadlineDaysSchema.optional(),
+  notifyMode: z.enum(["all", "unnotified_only", "none"]).optional(),
   reminderIntervalDays: reminderIntervalDaysSchema.optional(),
   /** Simple unless the install has a signing provider. */
   signatureLevel: z.enum(["simple", "advanced", "qualified"]).optional(),

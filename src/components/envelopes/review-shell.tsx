@@ -66,6 +66,7 @@ type ReviewSigner = {
   /** Signers who share a step sign at the same time. */
   step?: number;
   tint?: string;
+  wasPreviouslyNotified?: boolean;
 };
 
 type SendPhase = "error" | "idle" | "sending";
@@ -98,6 +99,9 @@ export function ReviewShell({
   const [reminderDays, setReminderDays] = useState<number | null>(
     DEFAULT_ENVELOPE_REMINDER_DAYS,
   );
+  const [notifyMode, setNotifyMode] = useState<
+    "all" | "unnotified_only" | "none"
+  >(record?.wasPreviouslySent ? "unnotified_only" : "all");
   const [signatureLevel, setSignatureLevel] =
     useState<SignatureLevel>("simple");
   const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
@@ -147,6 +151,7 @@ export function ReviewShell({
       const response = await fetch(`/api/envelopes/${envelopeId}/send`, {
         body: JSON.stringify({
           expiresInDays: deadlineDays,
+          notifyMode,
           permittedUseConfirmed: true,
           reminderIntervalDays: reminderDays,
           ...(record?.signingProvider ? { signatureLevel } : {}),
@@ -182,15 +187,33 @@ export function ReviewShell({
       }
 
       setIsConfirmationOpen(false);
-      setNotice(
-        payload?.signingUrl
-          ? `Envelope sent. Signing link copied to clipboard for ${notifiedSignerName} (ready for WhatsApp/email).`
-          : buildSuccessMessage(notifiedSignerName),
-      );
+
+      let successNotice = buildSuccessMessage(notifiedSignerName);
+      if (notifyMode === "none") {
+        successNotice = payload?.signingUrl
+          ? `Envelope sent. Signing link copied to clipboard for ${firstSigner?.name || "Signer 1"} (manual distribution).`
+          : "Envelope sent without email notifications. You can share signing links manually.";
+      } else if (notifyMode === "unnotified_only") {
+        if (payload?.signingUrl) {
+          successNotice = `Envelope sent. Signing link copied to clipboard for ${notifiedSignerName}.`;
+        } else if (notifiedSignerName === "Existing signers (links active)") {
+          successNotice =
+            "Envelope updated and sent. Existing signers' previous email links remain active.";
+        } else {
+          successNotice = `Envelope sent. New signer(s) notified: ${notifiedSignerName}. Existing signers' links remain active.`;
+        }
+      } else if (payload?.signingUrl) {
+        successNotice = `Envelope sent. Signing link copied to clipboard for ${notifiedSignerName} (ready for WhatsApp/email).`;
+      }
+
+      setNotice(successNotice);
       setSendPhase("idle");
-      sendTimeoutRef.current = window.setTimeout(() => {
-        window.location.assign(redirectPath);
-      }, payload?.signingUrl ? 2400 : redirectDelayMs);
+      sendTimeoutRef.current = window.setTimeout(
+        () => {
+          window.location.assign(redirectPath);
+        },
+        payload?.signingUrl ? 2400 : redirectDelayMs,
+      );
     } catch {
       setSendError(defaultSendErrorMessage);
       setSendPhase("error");
@@ -352,20 +375,27 @@ export function ReviewShell({
                               {signer.email}
                             </p>
                           </div>
-                          <span
-                            className="pill w-fit"
-                            style={{
-                              backgroundColor: palette.tint,
-                              color: palette.color,
-                            }}
-                          >
+                          <div className="flex flex-wrap items-center gap-2">
+                            {signer.wasPreviouslyNotified ? (
+                              <span className="pill pill-neutral w-fit text-[0.6875rem]">
+                                Already notified
+                              </span>
+                            ) : null}
                             <span
-                              aria-hidden="true"
-                              className="size-2 rounded-full"
-                              style={{ backgroundColor: palette.color }}
-                            />
-                            Signer {signer.order}
-                          </span>
+                              className="pill w-fit"
+                              style={{
+                                backgroundColor: palette.tint,
+                                color: palette.color,
+                              }}
+                            >
+                              <span
+                                aria-hidden="true"
+                                className="size-2 rounded-full"
+                                style={{ backgroundColor: palette.color }}
+                              />
+                              Signer {signer.order}
+                            </span>
+                          </div>
                         </div>
 
                         <p
@@ -458,6 +488,102 @@ export function ReviewShell({
               </p>
             </div>
 
+            <div className="well mt-4 p-4">
+              <span className="text-[0.8125rem] font-semibold text-(--secondary)">
+                Email invitations
+              </span>
+              <p className="mt-1 text-sm text-(--secondary)">
+                Control who receives an automated email invitation when this envelope is sent.
+              </p>
+
+              <div className="mt-3 space-y-2.5">
+                {record.wasPreviouslySent ? (
+                  <label
+                    className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                      notifyMode === "unnotified_only"
+                        ? "border-(--accent) bg-[rgb(var(--accent-rgb)/0.08)]"
+                        : "border-(--border) bg-(--well) hover:border-(--border-strong)"
+                    }`}
+                  >
+                    <input
+                      checked={notifyMode === "unnotified_only"}
+                      className="mt-1 accent-(--accent)"
+                      disabled={sendPhase === "sending" || Boolean(notice)}
+                      name="notifyMode"
+                      onChange={() => setNotifyMode("unnotified_only")}
+                      type="radio"
+                      value="unnotified_only"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-semibold text-(--fg)">
+                          Only people who haven&apos;t received an email yet
+                        </span>
+                        <span className="pill pill-accent text-[0.6875rem]">
+                          Recommended after edit
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs leading-5 text-(--secondary)">
+                        Prevents duplicate emails. Anyone who already received a link can open their existing email to sign this corrected document.
+                      </p>
+                    </div>
+                  </label>
+                ) : null}
+
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    notifyMode === "all"
+                      ? "border-(--accent) bg-[rgb(var(--accent-rgb)/0.08)]"
+                      : "border-(--border) bg-(--well) hover:border-(--border-strong)"
+                  }`}
+                >
+                  <input
+                    checked={notifyMode === "all"}
+                    className="mt-1 accent-(--accent)"
+                    disabled={sendPhase === "sending" || Boolean(notice)}
+                    name="notifyMode"
+                    onChange={() => setNotifyMode("all")}
+                    type="radio"
+                    value="all"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-semibold text-(--fg)">
+                      Send email to all active signers
+                    </span>
+                    <p className="mt-0.5 text-xs leading-5 text-(--secondary)">
+                      Sends fresh email invitations with signing links to all active signers.
+                    </p>
+                  </div>
+                </label>
+
+                <label
+                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
+                    notifyMode === "none"
+                      ? "border-(--accent) bg-[rgb(var(--accent-rgb)/0.08)]"
+                      : "border-(--border) bg-(--well) hover:border-(--border-strong)"
+                  }`}
+                >
+                  <input
+                    checked={notifyMode === "none"}
+                    className="mt-1 accent-(--accent)"
+                    disabled={sendPhase === "sending" || Boolean(notice)}
+                    name="notifyMode"
+                    onChange={() => setNotifyMode("none")}
+                    type="radio"
+                    value="none"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-sm font-semibold text-(--fg)">
+                      Don&apos;t send any emails
+                    </span>
+                    <p className="mt-0.5 text-xs leading-5 text-(--secondary)">
+                      No automated emails are sent. You can copy the signing link and distribute it manually via WhatsApp, chat, or personal email.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+
             {record.signingProvider ? (
               <div className="well mt-4 p-4">
                 <label className="grid gap-1.5">
@@ -531,6 +657,7 @@ export function ReviewShell({
           }
           firstStepSize={firstStepNames.length}
           isSending={sendPhase === "sending"}
+          notifyMode={notifyMode}
           onCancel={closeConfirmation}
           onConfirm={handleConfirmSend}
           signatureType={
@@ -556,6 +683,7 @@ type SendConfirmationDialogProps = {
   /** How many signers are invited at once when it is sent. */
   firstStepSize: number;
   isSending: boolean;
+  notifyMode: "all" | "unnotified_only" | "none";
   onCancel: () => void;
   onConfirm: () => void;
   /** Set when signers sign through the install's signing provider. */
@@ -570,6 +698,7 @@ function SendConfirmationDialog({
   firstSignerName,
   firstStepSize,
   isSending,
+  notifyMode,
   onCancel,
   onConfirm,
   signatureType,
@@ -596,11 +725,15 @@ function SendConfirmationDialog({
                 <p>
                   &quot;{title}&quot; will be sent to {signerCount}{" "}
                   {signerCount === 1 ? "signer" : "signers"}.{" "}
-                  {signerCount === 1
-                    ? `${firstSignerName} will be notified immediately.`
-                    : firstStepSize > 1
-                      ? `${firstSignerName} will be notified immediately, to sign at the same time.`
-                      : `The first signer (${firstSignerName}) will be notified immediately.`}{" "}
+                  {notifyMode === "none"
+                    ? "No automated emails will be sent. You can copy the signing link and distribute it manually."
+                    : notifyMode === "unnotified_only"
+                      ? "Only signers who haven't received an email yet will be notified. Existing signers can use their previous link to sign this document."
+                      : signerCount === 1
+                        ? `${firstSignerName} will be notified immediately.`
+                        : firstStepSize > 1
+                          ? `${firstSignerName} will be notified immediately, to sign at the same time.`
+                          : `The first signer (${firstSignerName}) will be notified immediately.`}{" "}
                   The request expires in {deadlineDays} days.
                 </p>
                 {signatureType ? (
