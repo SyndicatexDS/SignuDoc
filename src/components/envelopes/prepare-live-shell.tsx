@@ -4,6 +4,7 @@ import {
   CalendarIcon,
   CaseSensitiveIcon,
   CircleDotIcon,
+  FileUpIcon,
   HashIcon,
   SignatureIcon,
   SquareCheckIcon,
@@ -1080,11 +1081,12 @@ function PrepareLiveShellContent({
                   type="file"
                 />
                 <button
-                  className="btn-quiet px-2.5 py-1 text-xs font-semibold"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-(--border-strong) bg-(--well) px-3 py-1.5 text-xs font-bold text-(--fg) hover:border-(--accent) hover:text-(--accent) transition-all cursor-pointer shadow-xs disabled:opacity-50"
                   disabled={isReplacingDoc}
                   onClick={() => replaceDocInputRef.current?.click()}
                   type="button"
                 >
+                  <FileUpIcon className="size-3.5 text-(--accent)" />
                   {isReplacingDoc ? "Replacing..." : "Replace PDF"}
                 </button>
                 <SaveStatusIndicator

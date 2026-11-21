@@ -5,6 +5,7 @@ import {
   ClockIcon,
   DownloadIcon,
   FileTextIcon,
+  FileUpIcon,
   MinusIcon,
   PencilIcon,
   XIcon,
@@ -726,6 +727,11 @@ export function EnvelopeDetailShell({
                   onClick={() => replaceDocInputRef.current?.click()}
                   variant="secondary"
                 >
+                  <FileUpIcon
+                    aria-hidden="true"
+                    className="size-[1.125rem]"
+                    strokeWidth={2.2}
+                  />
                   {isReplacingDocument ? "Replacing..." : "Replace document"}
                 </ShellButton>
                 <ShellButton href={`/envelopes/${envelopeId}/prepare`}>
